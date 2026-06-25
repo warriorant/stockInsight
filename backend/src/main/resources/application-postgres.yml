@@ -1,0 +1,10 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/stock_app}
+    username: ${SPRING_DATASOURCE_USERNAME:stock}
+    password: ${SPRING_DATASOURCE_PASSWORD:stock}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    open-in-view: false

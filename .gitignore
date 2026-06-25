@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+target/
+.idea/
+.vscode/
+*.iml
+.DS_Store
+.env
+.env.local
+*.log
+.tools/
+.m2/
+.git-codex/
+.pnpm-store/
