@@ -1,7 +1,8 @@
-# Stock Analysis Web App
+# 주식 인사이트
 
-React + Vite frontend and Spring Boot backend starter for a stock analysis service.
-The app currently uses mock stock, price, financial, and AI analysis data so it can run before external stock APIs or an AI server are ready.
+React + Vite frontend and Spring Boot backend starter for a Korean stock analysis service.
+The backend now reads stock prices and price charts from the Yahoo Finance chart endpoint first, then falls back to mock data if the external call fails.
+Financial metrics and AI analysis are still mock data so the app can run before official finance and AI API keys are ready.
 
 ## Project Structure
 
@@ -40,7 +41,7 @@ mvn spring-boot:run
 ```
 
 The backend runs at `http://localhost:8080`.
-By default, it starts in mock mode without requiring PostgreSQL.
+By default, it starts without requiring PostgreSQL.
 
 To run with PostgreSQL, start Docker first and enable the `postgres` profile:
 
@@ -84,6 +85,25 @@ VITE_API_BASE_URL=http://localhost:8080/api
 - `GET /api/stocks/{symbol}/financials`
 - `POST /api/stocks/{symbol}/analysis`
 - `GET /api/stocks/{symbol}/analysis/latest`
+
+## Stock Price Integration
+
+The backend maps internal symbols to Korean market symbols:
+
+- `SAMSUNG` -> `005930.KS`
+- `SKHYNIX` -> `000660.KS`
+- `NAVER` -> `035420.KS`
+- `KAKAO` -> `035720.KS`
+- `HYUNDAI` -> `005380.KS`
+- `LGENERGY` -> `373220.KS`
+
+Live price data is fetched from Yahoo Finance chart URLs such as:
+
+```text
+https://query1.finance.yahoo.com/v8/finance/chart/005930.KS?range=5d&interval=1d
+```
+
+This is useful for local testing without an API key, but it should be replaced with an official provider such as KIS Developers before production use.
 
 ## AI Integration Point
 

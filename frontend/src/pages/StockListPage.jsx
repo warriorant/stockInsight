@@ -28,7 +28,7 @@ function StockListPage() {
     <div className="list-page">
       <section className="page-title-row">
         <div>
-          <span className="eyebrow">Stock List</span>
+          <span className="eyebrow">종목 탐색</span>
           <h1>{keyword ? `"${keyword}" 검색 결과` : '종목 목록'}</h1>
         </div>
         <StockSearchBar compact />
@@ -50,4 +50,3 @@ function StockListPage() {
 }
 
 export default StockListPage;
-

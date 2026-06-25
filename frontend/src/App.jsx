@@ -8,9 +8,9 @@ function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <NavLink to="/" className="brand" aria-label="Stock Insight 홈">
+        <NavLink to="/" className="brand" aria-label="주식 인사이트 홈">
           <LineChart size={24} aria-hidden="true" />
-          <span>Stock Insight</span>
+          <span>주식 인사이트</span>
         </NavLink>
 
         <nav className="nav-links" aria-label="주요 메뉴">

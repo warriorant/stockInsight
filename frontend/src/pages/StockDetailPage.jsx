@@ -94,7 +94,7 @@ function StockDetailPage() {
       <section className="detail-section">
         <div className="section-head">
           <div>
-            <span className="eyebrow">Price Chart</span>
+            <span className="eyebrow">가격 차트</span>
             <h2>가격 흐름</h2>
           </div>
           <div className="range-control" aria-label="차트 기간">
@@ -116,7 +116,7 @@ function StockDetailPage() {
       <section className="detail-section">
         <div className="section-head">
           <div>
-            <span className="eyebrow">Financials</span>
+            <span className="eyebrow">기업 지표</span>
             <h2>기업 지표</h2>
           </div>
         </div>
@@ -126,7 +126,7 @@ function StockDetailPage() {
       <section className="detail-section">
         <div className="section-head">
           <div>
-            <span className="eyebrow">Analysis</span>
+            <span className="eyebrow">AI 분석</span>
             <h2>AI 분석 결과</h2>
           </div>
           <button type="button" className="ghost-button" onClick={refreshAnalysis} disabled={analysisLoading}>

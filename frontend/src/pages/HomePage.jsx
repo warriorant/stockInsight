@@ -28,9 +28,9 @@ function HomePage() {
         <div className="home-copy">
           <span className="eyebrow">
             <Brain size={16} aria-hidden="true" />
-            Mock AI 분석
+            국내 주식 분석
           </span>
-          <h1>종목을 고르면 가격, 지표, 분석을 한 화면에서 봅니다.</h1>
+          <h1>종목을 검색하면 시세, 지표, 분석을 한 화면에서 봅니다.</h1>
         </div>
         <StockSearchBar />
       </section>
@@ -51,7 +51,7 @@ function HomePage() {
       <section className="section-head">
         <div>
           <span className="eyebrow">관심 종목</span>
-          <h2>오늘의 mock 종목</h2>
+          <h2>오늘의 주요 종목</h2>
         </div>
         <Link to="/stocks" className="text-link">
           전체 보기
