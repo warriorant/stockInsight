@@ -4,6 +4,8 @@ import StockCard from '../components/StockCard.jsx';
 import StockSearchBar from '../components/StockSearchBar.jsx';
 import { stocksApi } from '../api/stocksApi.js';
 
+const LIVE_REFRESH_MS = 7000;
+
 function StockListPage() {
   const [searchParams] = useSearchParams();
   const keyword = useMemo(() => searchParams.get('keyword') ?? '', [searchParams]);
@@ -11,17 +13,34 @@ function StockListPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadStocks = async () => {
-      setLoading(true);
+    let cancelled = false;
+
+    const loadStocks = async (showLoading = false) => {
+      if (showLoading) {
+        setLoading(true);
+      }
+
       try {
         const data = keyword ? await stocksApi.searchStocks(keyword) : await stocksApi.getStocks();
-        setStocks(data);
+        if (!cancelled) {
+          setStocks(data);
+        }
+      } catch (error) {
+        console.error('Failed to refresh live stocks.', error);
       } finally {
-        setLoading(false);
+        if (!cancelled && showLoading) {
+          setLoading(false);
+        }
       }
     };
 
-    loadStocks();
+    loadStocks(true);
+    const intervalId = window.setInterval(() => loadStocks(false), LIVE_REFRESH_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
   }, [keyword]);
 
   return (

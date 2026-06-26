@@ -13,6 +13,7 @@ const currencyFormatter = new Intl.NumberFormat('ko-KR', {
 });
 
 const ranges = ['1M', '3M', '6M', '1Y'];
+const LIVE_REFRESH_MS = 7000;
 
 function StockDetailPage() {
   const { symbol } = useParams();
@@ -47,12 +48,31 @@ function StockDetailPage() {
   }, [symbol]);
 
   useEffect(() => {
-    const loadPrices = async () => {
-      const priceData = await stocksApi.getPrices(symbol, range);
-      setPrices(priceData);
+    let cancelled = false;
+
+    const loadLiveData = async () => {
+      try {
+        const [stockData, priceData] = await Promise.all([
+          stocksApi.getStock(symbol),
+          stocksApi.getPrices(symbol, range),
+        ]);
+
+        if (!cancelled) {
+          setStock(stockData);
+          setPrices(priceData);
+        }
+      } catch (error) {
+        console.error('Failed to refresh live stock data.', error);
+      }
     };
 
-    loadPrices();
+    loadLiveData();
+    const intervalId = window.setInterval(loadLiveData, LIVE_REFRESH_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
   }, [symbol, range]);
 
   const refreshAnalysis = async () => {

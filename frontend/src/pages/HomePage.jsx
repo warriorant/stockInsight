@@ -5,21 +5,41 @@ import StockSearchBar from '../components/StockSearchBar.jsx';
 import StockCard from '../components/StockCard.jsx';
 import { stocksApi } from '../api/stocksApi.js';
 
+const LIVE_REFRESH_MS = 7000;
+
 function HomePage() {
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadStocks = async () => {
+    let cancelled = false;
+
+    const loadStocks = async (showLoading = false) => {
+      if (showLoading) {
+        setLoading(true);
+      }
+
       try {
         const data = await stocksApi.getStocks();
-        setStocks(data.slice(0, 3));
+        if (!cancelled) {
+          setStocks(data.slice(0, 3));
+        }
+      } catch (error) {
+        console.error('Failed to refresh live stocks.', error);
       } finally {
-        setLoading(false);
+        if (!cancelled && showLoading) {
+          setLoading(false);
+        }
       }
     };
 
-    loadStocks();
+    loadStocks(true);
+    const intervalId = window.setInterval(() => loadStocks(false), LIVE_REFRESH_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   return (
