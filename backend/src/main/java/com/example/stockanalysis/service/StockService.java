@@ -7,6 +7,8 @@ import com.example.stockanalysis.market.StockMarketClient;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,6 +21,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class StockService {
+
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     private final Map<String, StockDefinition> stocks = createStocks();
     private final Map<String, FinancialDataResponse> financials = createFinancials();
@@ -63,8 +67,9 @@ public class StockService {
     public List<PricePointResponse> getPrices(String symbol, String range) {
         StockDefinition stock = getDefinition(symbol);
         daysForRange(range);
-        return stockMarketClient.getPrices(stock, range)
+        List<PricePointResponse> prices = stockMarketClient.getPrices(stock, range)
                 .orElseGet(() -> createMockPrices(stock, range));
+        return mergeCurrentPrice(stock, prices);
     }
 
     public FinancialDataResponse getFinancials(String symbol) {
@@ -99,6 +104,29 @@ public class StockService {
                 stock.fallbackChangeRate(),
                 stock.description()
         );
+    }
+
+    private List<PricePointResponse> mergeCurrentPrice(StockDefinition stock, List<PricePointResponse> prices) {
+        if (prices.isEmpty()) {
+            return prices;
+        }
+
+        StockResponse liveStock = toLiveStock(stock);
+        BigDecimal currentPrice = liveStock.currentPrice();
+        LocalDate today = LocalDate.now(SEOUL);
+        PricePointResponse latest = prices.get(prices.size() - 1);
+        List<PricePointResponse> syncedPrices = new ArrayList<>(prices);
+
+        if (latest.date().isBefore(today)) {
+            syncedPrices.add(new PricePointResponse(today, currentPrice, 0L));
+            return syncedPrices;
+        }
+
+        if (latest.date().isEqual(today) && latest.close().compareTo(currentPrice) != 0) {
+            syncedPrices.set(syncedPrices.size() - 1, new PricePointResponse(today, currentPrice, latest.volume()));
+        }
+
+        return syncedPrices;
     }
 
     private List<PricePointResponse> createMockPrices(StockDefinition stock, String range) {

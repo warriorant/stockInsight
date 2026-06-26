@@ -30,6 +30,7 @@ public class YahooFinanceStockMarketClient implements StockMarketClient {
 
     private static final Logger log = LoggerFactory.getLogger(YahooFinanceStockMarketClient.class);
     private static final String BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
+    private static final String NAVER_REALTIME_URL = "https://polling.finance.naver.com/api/realtime/domestic/stock";
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     private final HttpClient httpClient;
@@ -44,8 +45,9 @@ public class YahooFinanceStockMarketClient implements StockMarketClient {
 
     @Override
     public Optional<StockResponse> getStock(StockDefinition stock) {
-        return fetchChart(stock.externalSymbol(), "5d")
-                .flatMap(chart -> toStockResponse(stock, chart));
+        return fetchNaverRealtimeStock(stock)
+                .or(() -> fetchChart(stock.externalSymbol(), "5d")
+                        .flatMap(chart -> toStockResponse(stock, chart)));
     }
 
     @Override
@@ -82,6 +84,57 @@ public class YahooFinanceStockMarketClient implements StockMarketClient {
                 Thread.currentThread().interrupt();
             }
             log.warn("Yahoo Finance request failed for {}", externalSymbol, error);
+            return Optional.empty();
+        }
+    }
+
+    private Optional<StockResponse> fetchNaverRealtimeStock(StockDefinition stock) {
+        String naverCode = naverCode(stock.externalSymbol());
+        if (naverCode.isBlank()) {
+            return Optional.empty();
+        }
+
+        URI uri = URI.create("%s/%s".formatted(NAVER_REALTIME_URL, naverCode));
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .timeout(Duration.ofSeconds(5))
+                .header("Accept", "application/json")
+                .header("User-Agent", "Mozilla/5.0")
+                .GET()
+                .build();
+
+        try {
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.warn("Naver Finance returned status {} for {}", response.statusCode(), naverCode);
+                return Optional.empty();
+            }
+
+            JsonNode item = objectMapper.readTree(response.body()).path("datas").path(0);
+            Optional<BigDecimal> price = decimalText(item.path("closePriceRaw"))
+                    .or(() -> decimalText(item.path("closePrice")));
+            if (price.isEmpty()) {
+                return Optional.empty();
+            }
+
+            BigDecimal changeRate = decimalText(item.path("fluctuationsRatioRaw"))
+                    .or(() -> decimalText(item.path("fluctuationsRatio")))
+                    .orElse(stock.fallbackChangeRate());
+
+            return Optional.of(new StockResponse(
+                    stock.symbol(),
+                    stock.name(),
+                    stock.market(),
+                    stock.sector(),
+                    stock.industry(),
+                    price.get().setScale(0, RoundingMode.HALF_UP),
+                    changeRate.setScale(2, RoundingMode.HALF_UP),
+                    stock.description()
+            ));
+        } catch (IOException | InterruptedException | RuntimeException error) {
+            if (error instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            log.warn("Naver Finance request failed for {}", naverCode, error);
             return Optional.empty();
         }
     }
@@ -142,6 +195,35 @@ public class YahooFinanceStockMarketClient implements StockMarketClient {
 
     private Optional<BigDecimal> decimal(JsonNode node) {
         return node.isNumber() ? Optional.of(BigDecimal.valueOf(node.asDouble())) : Optional.empty();
+    }
+
+    private Optional<BigDecimal> decimalText(JsonNode node) {
+        if (node.isNumber()) {
+            return decimal(node);
+        }
+        if (!node.isTextual()) {
+            return Optional.empty();
+        }
+
+        String value = node.asText().replace(",", "").trim();
+        if (value.isBlank()) {
+            return Optional.empty();
+        }
+
+        try {
+            return Optional.of(new BigDecimal(value));
+        } catch (NumberFormatException error) {
+            return Optional.empty();
+        }
+    }
+
+    private String naverCode(String externalSymbol) {
+        if (externalSymbol == null) {
+            return "";
+        }
+
+        int marketSeparator = externalSymbol.indexOf('.');
+        return marketSeparator > 0 ? externalSymbol.substring(0, marketSeparator) : externalSymbol;
     }
 
     private String yahooRange(String range) {

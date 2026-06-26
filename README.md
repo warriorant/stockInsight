@@ -1,7 +1,7 @@
 # 주식 인사이트
 
 React + Vite frontend and Spring Boot backend starter for a Korean stock analysis service.
-The backend now reads stock prices and price charts from the Yahoo Finance chart endpoint first, then falls back to mock data if the external call fails.
+The backend reads Korean stock current prices from Naver Finance realtime JSON and price charts from the Yahoo Finance chart endpoint, then falls back to mock data if external calls fail.
 Financial metrics and AI analysis are still mock data so the app can run before official finance and AI API keys are ready.
 
 ## Project Structure
@@ -97,7 +97,13 @@ The backend maps internal symbols to Korean market symbols:
 - `HYUNDAI` -> `005380.KS`
 - `LGENERGY` -> `373220.KS`
 
-Live price data is fetched from Yahoo Finance chart URLs such as:
+Current price data is fetched from Naver Finance realtime URLs such as:
+
+```text
+https://polling.finance.naver.com/api/realtime/domestic/stock/005930
+```
+
+Historical chart data is fetched from Yahoo Finance chart URLs such as:
 
 ```text
 https://query1.finance.yahoo.com/v8/finance/chart/005930.KS?range=5d&interval=1d
