@@ -21,10 +21,6 @@ function formatWon(value) {
 }
 
 function formatAxisPrice(value) {
-  if (value >= 10000) {
-    return `${Number((value / 10000).toFixed(1))}만`;
-  }
-
   return priceFormatter.format(value);
 }
 
@@ -92,8 +88,19 @@ function PriceChart({ data }) {
       </div>
 
       <div className="chart-viewport">
+        <div className="chart-axis-guide" aria-label="차트 축 설명">
+          <span>
+            <strong>X축</strong> 날짜
+          </span>
+          <span>
+            <strong>Y축</strong> 종가(원)
+          </span>
+          <span>
+            <strong>점선</strong> 평균가
+          </span>
+        </div>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 20, right: 30, left: 18, bottom: 30 }}>
+          <AreaChart data={data} margin={{ top: 22, right: 30, left: 4, bottom: 38 }}>
             <defs>
               <linearGradient id="priceFill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#1f9d72" stopOpacity={0.28} />
@@ -124,16 +131,8 @@ function PriceChart({ data }) {
               tick={{ fill: '#566574', fontSize: 12, fontWeight: 700 }}
               tickLine={{ stroke: '#9facb8' }}
               axisLine={{ stroke: '#9facb8' }}
-              width={82}
-              label={{
-                value: '종가 (원)',
-                angle: -90,
-                position: 'insideLeft',
-                offset: -4,
-                fill: '#566574',
-                fontSize: 12,
-                fontWeight: 800,
-              }}
+              width={96}
+              allowDecimals={false}
             />
             <Tooltip content={<PriceTooltip />} />
             <ReferenceLine
