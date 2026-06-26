@@ -103,23 +103,23 @@ function PriceChart({ data }) {
           <AreaChart data={data} margin={{ top: 22, right: 30, left: 4, bottom: 38 }}>
             <defs>
               <linearGradient id="priceFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#1f9d72" stopOpacity={0.28} />
-                <stop offset="95%" stopColor="#1f9d72" stopOpacity={0.02} />
+                <stop offset="5%" stopColor="#0ecb81" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#0ecb81" stopOpacity={0.02} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="#dfe6ee" strokeDasharray="4 4" />
+            <CartesianGrid stroke="#252d38" strokeDasharray="4 4" />
             <XAxis
               dataKey="date"
               tickFormatter={formatDateLabel}
               minTickGap={34}
-              tick={{ fill: '#566574', fontSize: 12, fontWeight: 700 }}
-              tickLine={{ stroke: '#9facb8' }}
-              axisLine={{ stroke: '#9facb8' }}
+              tick={{ fill: '#9aa4b2', fontSize: 12, fontWeight: 700 }}
+              tickLine={{ stroke: '#3a4554' }}
+              axisLine={{ stroke: '#3a4554' }}
               label={{
                 value: '날짜',
                 position: 'insideBottom',
                 offset: -18,
-                fill: '#566574',
+                fill: '#9aa4b2',
                 fontSize: 12,
                 fontWeight: 800,
               }}
@@ -128,21 +128,21 @@ function PriceChart({ data }) {
               domain={yDomain}
               tickCount={6}
               tickFormatter={formatAxisPrice}
-              tick={{ fill: '#566574', fontSize: 12, fontWeight: 700 }}
-              tickLine={{ stroke: '#9facb8' }}
-              axisLine={{ stroke: '#9facb8' }}
+              tick={{ fill: '#9aa4b2', fontSize: 12, fontWeight: 700 }}
+              tickLine={{ stroke: '#3a4554' }}
+              axisLine={{ stroke: '#3a4554' }}
               width={96}
               allowDecimals={false}
             />
             <Tooltip content={<PriceTooltip />} />
             <ReferenceLine
               y={averagePrice}
-              stroke="#d97b42"
+              stroke="#f0b90b"
               strokeDasharray="6 6"
               label={{
                 value: `평균 ${formatWon(averagePrice)}`,
                 position: 'insideTopRight',
-                fill: '#9a5d24',
+                fill: '#f0b90b',
                 fontSize: 12,
                 fontWeight: 800,
               }}
@@ -151,11 +151,11 @@ function PriceChart({ data }) {
               type="monotone"
               dataKey="close"
               name="종가"
-              stroke="#1f9d72"
+              stroke="#0ecb81"
               strokeWidth={3}
               fill="url(#priceFill)"
               dot={false}
-              activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2 }}
+              activeDot={{ r: 6, stroke: '#0b0e11', strokeWidth: 2 }}
             />
           </AreaChart>
         </ResponsiveContainer>

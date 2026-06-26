@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, RefreshCw } from '../icons.js';
 import AiAnalysisCard from '../components/AiAnalysisCard.jsx';
 import FinancialMetrics from '../components/FinancialMetrics.jsx';
+import MarketEventsPanel from '../components/MarketEventsPanel.jsx';
 import PriceChart from '../components/PriceChart.jsx';
 import { stocksApi } from '../api/stocksApi.js';
 
@@ -21,6 +22,7 @@ function StockDetailPage() {
   const [prices, setPrices] = useState([]);
   const [financials, setFinancials] = useState(null);
   const [analysis, setAnalysis] = useState(null);
+  const [events, setEvents] = useState([]);
   const [range, setRange] = useState('3M');
   const [loading, setLoading] = useState(true);
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -45,6 +47,27 @@ function StockDetailPage() {
     };
 
     loadStaticData();
+  }, [symbol]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadEvents = async () => {
+      try {
+        const eventData = await stocksApi.getStockEvents(symbol);
+        if (!cancelled) {
+          setEvents(eventData);
+        }
+      } catch (error) {
+        console.error('Failed to load market events.', error);
+      }
+    };
+
+    loadEvents();
+
+    return () => {
+      cancelled = true;
+    };
   }, [symbol]);
 
   useEffect(() => {
@@ -132,6 +155,8 @@ function StockDetailPage() {
         </div>
         <PriceChart data={prices} />
       </section>
+
+      <MarketEventsPanel events={events} compact title={`${stock.name}에 영향 줄 수 있는 일정`} />
 
       <section className="detail-section">
         <div className="section-head">

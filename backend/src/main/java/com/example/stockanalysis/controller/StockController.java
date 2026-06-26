@@ -2,9 +2,11 @@ package com.example.stockanalysis.controller;
 
 import com.example.stockanalysis.dto.AiAnalysisResponse;
 import com.example.stockanalysis.dto.FinancialDataResponse;
+import com.example.stockanalysis.dto.MarketEventResponse;
 import com.example.stockanalysis.dto.PricePointResponse;
 import com.example.stockanalysis.dto.StockResponse;
 import com.example.stockanalysis.service.AnalysisService;
+import com.example.stockanalysis.service.MarketEventService;
 import com.example.stockanalysis.service.StockService;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,10 +22,16 @@ public class StockController {
 
     private final StockService stockService;
     private final AnalysisService analysisService;
+    private final MarketEventService marketEventService;
 
-    public StockController(StockService stockService, AnalysisService analysisService) {
+    public StockController(
+            StockService stockService,
+            AnalysisService analysisService,
+            MarketEventService marketEventService
+    ) {
         this.stockService = stockService;
         this.analysisService = analysisService;
+        this.marketEventService = marketEventService;
     }
 
     @GetMapping
@@ -54,6 +62,11 @@ public class StockController {
         return stockService.getFinancials(symbol);
     }
 
+    @GetMapping("/{symbol}/events")
+    public List<MarketEventResponse> getEvents(@PathVariable String symbol) {
+        return marketEventService.getEventsForStock(symbol);
+    }
+
     @PostMapping("/{symbol}/analysis")
     public AiAnalysisResponse analyze(@PathVariable String symbol) {
         return analysisService.analyze(symbol);
@@ -64,4 +77,3 @@ public class StockController {
         return analysisService.getLatestAnalysis(symbol);
     }
 }
-

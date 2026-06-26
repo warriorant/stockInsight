@@ -21,7 +21,8 @@ export const stocksApi = {
       })
       .then((response) => response.data),
   getFinancials: (symbol) => api.get(`/stocks/${symbol}/financials`).then((response) => response.data),
+  getMarketEvents: () => api.get('/market-events').then((response) => response.data),
+  getStockEvents: (symbol) => api.get(`/stocks/${symbol}/events`).then((response) => response.data),
   runAnalysis: (symbol) => api.post(`/stocks/${symbol}/analysis`).then((response) => response.data),
   getLatestAnalysis: (symbol) => api.get(`/stocks/${symbol}/analysis/latest`).then((response) => response.data),
 };
-
