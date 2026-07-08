@@ -10,4 +10,8 @@ spring:
 app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
-
+  market-events:
+    look-ahead-days: ${MARKET_EVENTS_LOOK_AHEAD_DAYS:60}
+    refresh-ms: ${MARKET_EVENTS_REFRESH_MS:21600000}
+    fmp:
+      api-key: ${FMP_API_KEY:}

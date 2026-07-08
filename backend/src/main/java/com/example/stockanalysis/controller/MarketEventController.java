@@ -4,6 +4,7 @@ import com.example.stockanalysis.dto.MarketEventResponse;
 import com.example.stockanalysis.service.MarketEventService;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -19,6 +20,12 @@ public class MarketEventController {
 
     @GetMapping
     public List<MarketEventResponse> getUpcomingEvents() {
+        return marketEventService.getUpcomingEvents();
+    }
+
+    @PostMapping("/refresh")
+    public List<MarketEventResponse> refreshEvents() {
+        marketEventService.refreshEvents();
         return marketEventService.getUpcomingEvents();
     }
 }
