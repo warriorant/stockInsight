@@ -195,6 +195,7 @@ public class JpaStockPersistencePort implements StockPersistencePort {
                 period.confidence(),
                 period.patternDescription(),
                 period.imageGenerated(),
+                period.chartImageDataUrl(),
                 reference == null ? null : reference.averageReturn(),
                 reference == null ? null : reference.medianReturn(),
                 reference == null ? null : reference.positiveRate(),
@@ -252,7 +253,8 @@ public class JpaStockPersistencePort implements StockPersistencePort {
                 result.getConfidence(),
                 result.getPatternDescription(),
                 referenceReturns,
-                result.getImageGenerated()
+                result.getImageGenerated(),
+                result.getChartImageDataUrl()
         );
     }
 

@@ -12,6 +12,7 @@ public record PeriodPatternAnalysisResponse(
         BigDecimal confidence,
         String patternDescription,
         List<PatternBacktestMetricResponse> referenceReturns,
-        Boolean imageGenerated
+        Boolean imageGenerated,
+        String chartImageDataUrl
 ) {
 }

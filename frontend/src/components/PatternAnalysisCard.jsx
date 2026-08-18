@@ -106,18 +106,54 @@ function patternVisual(patternName) {
   };
 }
 
-function PatternPreview({ patternName }) {
-  const visual = patternVisual(patternName);
+function PatternPreview({ analysis }) {
+  const actualImage = analysis.periodAnalyses
+    ?.filter((item) => item.chartImageDataUrl)
+    .sort((left, right) => {
+      if (left.period === '12M') return -1;
+      if (right.period === '12M') return 1;
+      return 0;
+    })[0];
+
+  if (actualImage) {
+    return (
+      <section className="pattern-visual-panel actual-chart-panel" aria-label="AI가 분석한 실제 차트 이미지">
+        <div className="pattern-visual-copy">
+          <span>AI 서버1 생성 이미지</span>
+          <strong>{displayPeriod(actualImage.period)} 실제 차트</strong>
+          <p>AI 서버2는 이 이미지를 보고 {analysis.patternName} 패턴으로 분류했습니다.</p>
+        </div>
+        <div className="pattern-visual-frame actual-chart-frame">
+          <img
+            src={actualImage.chartImageDataUrl}
+            alt={`${analysis.name} ${displayPeriod(actualImage.period)} AI 분석 차트`}
+          />
+          <div className="pattern-legend">
+            <span>
+              <i className="flow-dot" />
+              실제 분석 이미지
+            </span>
+            <span>
+              <i className="guide-dot" />
+              {formatConfidence(actualImage.confidence)} 신뢰도
+            </span>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const visual = patternVisual(analysis.patternName);
 
   return (
-    <section className="pattern-visual-panel" aria-label={`${patternName} 패턴 예시 이미지`}>
+    <section className="pattern-visual-panel" aria-label={`${analysis.patternName} 패턴 예시 이미지`}>
       <div className="pattern-visual-copy">
-        <span>패턴 모양 예시</span>
-        <strong>{patternName}</strong>
-        <p>{visual.label}</p>
+        <span>분석 이미지 없음</span>
+        <strong>{analysis.patternName}</strong>
+        <p>기존 캐시에는 실제 이미지가 저장되어 있지 않습니다. 갱신하면 실제 분석 이미지가 표시됩니다.</p>
       </div>
       <div className="pattern-visual-frame">
-        <svg viewBox="0 0 640 260" role="img" aria-label={`${patternName} 차트 패턴 예시`}>
+        <svg viewBox="0 0 640 260" role="img" aria-label={`${analysis.patternName} 차트 패턴 예시`}>
           <rect x="0" y="0" width="640" height="260" rx="8" />
           <g className="grid-lines">
             <path d="M40 48 L610 48" />
@@ -173,7 +209,7 @@ function PatternAnalysisCard({ analysis, loading, onRefresh }) {
 
       <p className="analysis-summary">{analysis.summary}</p>
 
-      <PatternPreview patternName={analysis.patternName} />
+      <PatternPreview analysis={analysis} />
 
       {analysis.periodAnalyses?.length > 0 && (
         <section className="period-patterns">
@@ -184,6 +220,13 @@ function PatternAnalysisCard({ analysis, loading, onRefresh }) {
           <div className="period-pattern-grid">
             {analysis.periodAnalyses.map((item) => (
               <article className="period-pattern-card" key={item.period}>
+                {item.chartImageDataUrl && (
+                  <img
+                    className="period-pattern-image"
+                    src={item.chartImageDataUrl}
+                    alt={`${displayPeriod(item.period)} AI 분석 차트`}
+                  />
+                )}
                 <div>
                   <span>{displayPeriod(item.period)} 차트</span>
                   <strong>{item.patternName}</strong>

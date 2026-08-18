@@ -10,7 +10,9 @@ import com.example.stockanalysis.service.ChartPatternCatalogService;
 import com.example.stockanalysis.service.ChartPatternCatalogService.ChartPatternDefinition;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
@@ -134,8 +136,21 @@ public class TwoStepChartPatternAnalysisClient implements ChartPatternAnalysisCl
                 prediction.confidence(),
                 definition.description(),
                 List.of(referenceReturn),
-                chartImage.imageBytes().length > 0
+                chartImage.imageBytes().length > 0,
+                chartImageDataUrl(chartImage)
         );
+    }
+
+    private String chartImageDataUrl(ChartImageResponse chartImage) {
+        if (chartImage.imageBytes().length == 0) {
+            return null;
+        }
+        String contentType = chartImage.contentType();
+        if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
+            contentType = "image/png";
+        }
+        String encodedImage = Base64.getEncoder().encodeToString(chartImage.imageBytes());
+        return "data:%s;base64,%s".formatted(contentType, encodedImage);
     }
 
     private PatternPredictionResponse unavailablePrediction() {

@@ -7,6 +7,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
@@ -45,6 +46,10 @@ public class ChartPatternPeriodResult {
 
     private Boolean imageGenerated;
 
+    @Lob
+    @Column(name = "chart_image_data_url", columnDefinition = "TEXT")
+    private String chartImageDataUrl;
+
     @Column(precision = 8, scale = 2)
     private BigDecimal referenceAverageReturn;
 
@@ -69,6 +74,7 @@ public class ChartPatternPeriodResult {
             BigDecimal confidence,
             String patternDescription,
             Boolean imageGenerated,
+            String chartImageDataUrl,
             BigDecimal referenceAverageReturn,
             BigDecimal referenceMedianReturn,
             BigDecimal referencePositiveRate,
@@ -82,6 +88,7 @@ public class ChartPatternPeriodResult {
         this.confidence = confidence;
         this.patternDescription = patternDescription;
         this.imageGenerated = imageGenerated;
+        this.chartImageDataUrl = chartImageDataUrl;
         this.referenceAverageReturn = referenceAverageReturn;
         this.referenceMedianReturn = referenceMedianReturn;
         this.referencePositiveRate = referencePositiveRate;
@@ -122,6 +129,10 @@ public class ChartPatternPeriodResult {
 
     public Boolean getImageGenerated() {
         return imageGenerated;
+    }
+
+    public String getChartImageDataUrl() {
+        return chartImageDataUrl;
     }
 
     public BigDecimal getReferenceAverageReturn() {

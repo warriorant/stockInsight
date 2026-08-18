@@ -939,6 +939,26 @@ a {
   min-height: 220px;
 }
 
+.actual-chart-frame {
+  align-content: start;
+}
+
+.actual-chart-frame img,
+.period-pattern-image {
+  display: block;
+  width: 100%;
+  border: 1px solid #252d38;
+  border-radius: 8px;
+  background: #ffffff;
+  object-fit: contain;
+}
+
+.actual-chart-frame img {
+  min-height: 260px;
+  max-height: 440px;
+  padding: 12px;
+}
+
 .pattern-visual-frame rect {
   fill: #0b0e11;
 }
@@ -1033,6 +1053,11 @@ a {
   border: 1px solid #252d38;
   border-radius: 8px;
   background: #0f141b;
+}
+
+.period-pattern-image {
+  aspect-ratio: 16 / 10;
+  padding: 8px;
 }
 
 .period-pattern-card > div:first-child {
