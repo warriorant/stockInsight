@@ -105,7 +105,7 @@ function StockDetailPage() {
   const refreshPatternAnalysis = async () => {
     setPatternLoading(true);
     try {
-      const data = await stocksApi.runPatternAnalysis(symbol);
+      const data = await stocksApi.runPatternAnalysis(symbol, { refresh: true });
       setPatternAnalysis(data);
     } finally {
       setPatternLoading(false);
