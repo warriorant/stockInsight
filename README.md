@@ -2,10 +2,12 @@
 
 React + Vite frontend and Spring Boot backend for a Korean stock insight service.
 The product goal is to provide the information a beginner needs before making their own trading decision, without giving direct investment action recommendations.
-The backend reads KOSPI stock master data from KRX KIND, Korean stock current prices from Naver Finance realtime JSON, and price charts from the Yahoo Finance chart endpoint.
+The backend reads KOSPI stock master data from KRX KIND and stores Toss OHLC candles in PostgreSQL before user analysis.
 Financial metrics show only values that can be calculated from OpenDART when `OPENDART_API_KEY` is configured.
 Market events combine rule-based expiry dates with optional FMP corporate calendars, Trading Economics macro calendars, and FRED release dates.
-The AI area is being refocused from suitability scoring to chart pattern classification and historical return statistics for similar patterns.
+The AI area focuses on chart pattern classification and reference return statistics for similar patterns.
+
+For deployment details, see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## Project Structure
 
@@ -122,6 +124,10 @@ TOSS_CLIENT_SECRET=your_toss_client_secret
 KOSPI_RENDER_API_KEY=your_render_api_key
 AI_CHART_IMAGE_URL=https://kospi-data-api.onrender.com/v1/render
 AI_PATTERN_SERVER_PREDICT_URL=https://stock-api-server-r63u.onrender.com/predict/
+AI_PATTERN_SERVER_TIMEOUT_SECONDS=180
+CANDLE_SYNC_ENABLED=false
+CANDLE_SYNC_CRON=0 30 21 * * MON-FRI
+CANDLE_SYNC_DELAY_MS=500
 CHART_PATTERN_BATCH_ENABLED=false
 CHART_PATTERN_BATCH_CRON=0 0 22 * * MON-FRI
 CHART_PATTERN_BATCH_DELAY_MS=1000
@@ -155,6 +161,8 @@ VITE_API_BASE_URL=http://localhost:8080/api
 - `GET /api/stocks/{symbol}/events`
 - `POST /api/stocks/{symbol}/chart-pattern-analysis`
 - `GET /api/stocks/{symbol}/chart-pattern-analysis/latest`
+- `POST /api/admin/candles/kospi`
+- `GET /api/admin/candles/kospi`
 - `GET /api/market-events`
 - `POST /api/market-events/refresh`
 
@@ -176,9 +184,11 @@ The service intentionally does not provide direct action recommendations. It pre
 Expected production flow:
 
 ```text
-Backend -> Toss Open API OAuth token
-Backend -> Toss daily candles, with nextBefore pagination
-Backend -> Render API /v1/render with 12 months of candles
+Pre-collection batch -> Toss Open API OAuth token
+Pre-collection batch -> Toss daily candles, with nextBefore pagination
+Pre-collection batch -> stock_candles table
+User request -> Backend reads recent candles from stock_candles first
+Backend -> Render API /v1/render with stored 12 months of candles
 Render API -> 6M/12M chart images
 Backend -> Pattern API /predict/ with chart image
 Pattern API -> pattern/confidence
@@ -191,43 +201,60 @@ Toss Open API requires the backend server's outbound IPv4 to be registered in To
 curl -4 https://api.ipify.org
 ```
 
-## KOSPI Batch Analysis
+If enough stored candles are available, chart pattern analysis does not call Toss during the user request.
+If fewer than 100 stored candles are available for the stock, the backend falls back to the existing direct Toss fetch path so local testing still works.
+If the same stock was already analyzed today, the backend returns the stored `chart_pattern_analysis_runs` result first and skips both AI servers.
+Use `refresh=true` only when you intentionally want to rerun the AI flow:
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/api/stocks/005930/chart-pattern-analysis?refresh=true" -Method Post
+```
+
+## KOSPI Candle Pre-Collection
+
+Before chart-pattern analysis, collect and store OHLC candles for KOSPI stocks:
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/api/admin/candles/kospi?months=12" -Method Post
+```
+
+Small test:
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/api/admin/candles/kospi?limit=3&months=12" -Method Post
+```
+
+Status:
+
+```powershell
+Invoke-RestMethod -Uri http://localhost:8080/api/admin/candles/kospi -Method Get
+```
+
+Automatic candle collection is prepared but disabled by default:
+
+```bash
+CANDLE_SYNC_ENABLED=true
+CANDLE_SYNC_CRON=0 30 21 * * MON-FRI
+CANDLE_SYNC_DELAY_MS=500
+```
+
+With that setting, the backend collects KOSPI OHLC data at 21:30 Asia/Seoul on weekdays.
+
+## KOSPI Stock Data And Candle Sync
 
 Stock search uses the `stocks` table first when PostgreSQL mode is enabled.
 The backend still loads the KOSPI stock master from KRX KIND on startup and mirrors it into `stocks`, but user-facing list, search, and detail lookups are DB-first.
 If PostgreSQL is not enabled or the table is empty, the service falls back to the in-memory KRX list for local development.
 
-The same DB-first stock list is used for whole-market chart pattern analysis.
+The same DB-first stock list is used for OHLC candle pre-collection.
+Current operation does not run whole-market AI chart analysis in advance.
+Only Toss OHLC candles are collected ahead of time, and AI chart analysis runs when a user requests a stock.
 
-Manual batch start:
-
-```powershell
-Invoke-RestMethod -Uri http://localhost:8080/api/admin/chart-pattern-batch/kospi -Method Post
-```
-
-Manual small test:
-
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/admin/chart-pattern-batch/kospi?limit=1" -Method Post
-```
-
-Batch status:
-
-```powershell
-Invoke-RestMethod -Uri http://localhost:8080/api/admin/chart-pattern-batch/kospi -Method Get
-```
-
-Automatic nightly execution is prepared but disabled by default to avoid accidentally calling Toss and both AI servers for every KOSPI stock during local testing.
-Enable it in the backend environment when ready:
+The legacy chart-pattern batch settings remain disabled by default:
 
 ```bash
-CHART_PATTERN_BATCH_ENABLED=true
-CHART_PATTERN_BATCH_CRON=0 0 22 * * MON-FRI
-CHART_PATTERN_BATCH_DELAY_MS=1000
+CHART_PATTERN_BATCH_ENABLED=false
 ```
-
-With that setting, the backend starts a KOSPI-wide chart pattern batch at 22:00 Asia/Seoul on weekdays.
-Each item reuses the same production flow as `POST /api/stocks/{symbol}/chart-pattern-analysis`, then persists the result in PostgreSQL.
 
 ## Stock Price Integration
 

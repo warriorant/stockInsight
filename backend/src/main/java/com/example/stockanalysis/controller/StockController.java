@@ -85,8 +85,11 @@ public class StockController {
     }
 
     @PostMapping("/{symbol}/chart-pattern-analysis")
-    public ChartPatternAnalysisResponse analyzeChartPattern(@PathVariable String symbol) {
-        return chartPatternAnalysisService.analyze(symbol);
+    public ChartPatternAnalysisResponse analyzeChartPattern(
+            @PathVariable String symbol,
+            @RequestParam(defaultValue = "false") boolean refresh
+    ) {
+        return chartPatternAnalysisService.analyze(symbol, refresh);
     }
 
     @PostMapping("/{symbol}/chart-pattern-analysis/test-candles")

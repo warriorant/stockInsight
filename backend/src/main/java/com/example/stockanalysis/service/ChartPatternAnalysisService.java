@@ -18,6 +18,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class ChartPatternAnalysisService {
 
+    private static final String CANDLE_SOURCE = "TOSS";
+    private static final int MIN_CANDLES_FOR_DB_ANALYSIS = 100;
+
     private final StockService stockService;
     private final ChartPatternAnalysisClient chartPatternAnalysisClient;
     private final StockPersistencePort stockPersistencePort;
@@ -34,23 +37,51 @@ public class ChartPatternAnalysisService {
     }
 
     public ChartPatternAnalysisResponse analyze(String symbol) {
+        return analyze(symbol, false);
+    }
+
+    public ChartPatternAnalysisResponse analyze(String symbol, boolean refresh) {
         String normalizedSymbol = normalizeSymbol(symbol);
+        LocalDate targetDate = LocalDate.now();
+        if (!refresh) {
+            java.util.Optional<ChartPatternAnalysisResponse> cached = stockPersistencePort.findChartPatternAnalysis(normalizedSymbol, targetDate);
+            if (cached.isPresent()) {
+                latestAnalysisBySymbol.put(normalizedSymbol, cached.get());
+                return cached.get();
+            }
+        }
+
         StockResponse stock = stockService.getStock(normalizedSymbol);
+        List<StockCandleResponse> storedCandles = stockPersistencePort.findCandles(
+                normalizedSymbol,
+                targetDate.minusMonths(12),
+                targetDate,
+                CANDLE_SOURCE
+        );
+        boolean useStoredCandles = storedCandles.size() >= MIN_CANDLES_FOR_DB_ANALYSIS;
+
         Map<String, List<PricePointResponse>> priceDataByPeriod = new LinkedHashMap<>();
-        priceDataByPeriod.put("6M", stockService.getPrices(normalizedSymbol, "6M"));
-        priceDataByPeriod.put("12M", stockService.getPrices(normalizedSymbol, "1Y"));
+        if (useStoredCandles) {
+            priceDataByPeriod.put("6M", pricePointsFromCandles(storedCandles, targetDate.minusMonths(6)));
+            priceDataByPeriod.put("12M", pricePointsFromCandles(storedCandles, targetDate.minusMonths(12)));
+        } else {
+            priceDataByPeriod.put("6M", stockService.getPrices(normalizedSymbol, "6M"));
+            priceDataByPeriod.put("12M", stockService.getPrices(normalizedSymbol, "1Y"));
+        }
         FinancialDataResponse financialData = stockService.getFinancials(normalizedSymbol);
 
         ChartPatternAnalysisRequest request = new ChartPatternAnalysisRequest(
                 stock.symbol(),
                 stock.name(),
                 stock.market(),
-                LocalDate.now(),
+                targetDate,
                 priceDataByPeriod,
                 financialData
         );
 
-        ChartPatternAnalysisResponse response = chartPatternAnalysisClient.analyze(request);
+        ChartPatternAnalysisResponse response = useStoredCandles
+                ? chartPatternAnalysisClient.analyze(request, storedCandles)
+                : chartPatternAnalysisClient.analyze(request);
         latestAnalysisBySymbol.put(normalizedSymbol, response);
         stockPersistencePort.saveChartPatternAnalysis(response);
         return response;
@@ -89,5 +120,16 @@ public class ChartPatternAnalysisService {
 
     private String normalizeSymbol(String symbol) {
         return symbol == null ? "" : symbol.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private List<PricePointResponse> pricePointsFromCandles(List<StockCandleResponse> candles, LocalDate startDate) {
+        return candles.stream()
+                .filter(candle -> !candle.timestamp().toLocalDate().isBefore(startDate))
+                .map(candle -> new PricePointResponse(
+                        candle.timestamp().toLocalDate(),
+                        candle.closePrice(),
+                        candle.volume()
+                ))
+                .toList();
     }
 }

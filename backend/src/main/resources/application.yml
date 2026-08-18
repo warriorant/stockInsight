@@ -24,6 +24,7 @@ app:
       mock-enabled: ${AI_CHART_PATTERN_MOCK_ENABLED:false}
     pattern-server:
       predict-url: ${AI_PATTERN_SERVER_PREDICT_URL:https://stock-api-server-r63u.onrender.com/predict/}
+      timeout-seconds: ${AI_PATTERN_SERVER_TIMEOUT_SECONDS:180}
   financials:
     opendart:
       api-key: ${OPENDART_API_KEY:}
@@ -46,3 +47,7 @@ app:
     enabled: ${CHART_PATTERN_BATCH_ENABLED:false}
     cron: ${CHART_PATTERN_BATCH_CRON:0 0 22 * * MON-FRI}
     delay-ms: ${CHART_PATTERN_BATCH_DELAY_MS:1000}
+  candle-sync:
+    enabled: ${CANDLE_SYNC_ENABLED:false}
+    cron: ${CANDLE_SYNC_CRON:0 30 21 * * MON-FRI}
+    delay-ms: ${CANDLE_SYNC_DELAY_MS:500}

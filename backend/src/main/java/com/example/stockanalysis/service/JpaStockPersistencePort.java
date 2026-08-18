@@ -14,6 +14,8 @@ import com.example.stockanalysis.repository.StockRepository;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
@@ -24,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Primary
 @Profile("postgres")
 public class JpaStockPersistencePort implements StockPersistencePort {
+
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     private final StockRepository stockRepository;
     private final StockCandleRepository stockCandleRepository;
@@ -126,6 +130,22 @@ public class JpaStockPersistencePort implements StockPersistencePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<StockCandleResponse> findCandles(String symbol, LocalDate startDate, LocalDate endDate, String source) {
+        return stockCandleRepository
+                .findBySymbolAndSourceAndDateBetweenOrderByDateAsc(symbol, source, startDate, endDate)
+                .stream()
+                .map(this::toCandleResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countCandles(String symbol, String source) {
+        return stockCandleRepository.countBySymbolAndSource(symbol, source);
+    }
+
+    @Override
     @Transactional
     public void saveChartPatternAnalysis(ChartPatternAnalysisResponse response) {
         ChartPatternAnalysisRun run = new ChartPatternAnalysisRun(
@@ -145,6 +165,13 @@ public class JpaStockPersistencePort implements StockPersistencePort {
 
         response.periodAnalyses().forEach(period -> run.addPeriodResult(periodResult(period)));
         chartPatternAnalysisRunRepository.save(run);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ChartPatternAnalysisResponse> findChartPatternAnalysis(String symbol, LocalDate targetDate) {
+        return chartPatternAnalysisRunRepository.findFirstBySymbolAndTargetDateOrderByCreatedAtDesc(symbol, targetDate)
+                .map(this::toResponse);
     }
 
     @Override
@@ -226,6 +253,17 @@ public class JpaStockPersistencePort implements StockPersistencePort {
                 result.getPatternDescription(),
                 referenceReturns,
                 result.getImageGenerated()
+        );
+    }
+
+    private StockCandleResponse toCandleResponse(StockCandle candle) {
+        return new StockCandleResponse(
+                candle.getDate().atStartOfDay(SEOUL).toOffsetDateTime(),
+                candle.getOpenPrice(),
+                candle.getHighPrice(),
+                candle.getLowPrice(),
+                candle.getClosePrice(),
+                candle.getVolume()
         );
     }
 

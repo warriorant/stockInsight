@@ -25,17 +25,20 @@ public class AiServerPatternPredictionClient implements PatternPredictionClient 
     private static final Pattern NUMBER_PATTERN = Pattern.compile("(\\d+)");
 
     private final String predictUrl;
+    private final int timeoutSeconds;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
     public AiServerPatternPredictionClient(
             @Value("${app.ai.pattern-server.predict-url:}") String predictUrl,
+            @Value("${app.ai.pattern-server.timeout-seconds:180}") int timeoutSeconds,
             ObjectMapper objectMapper
     ) {
         this.predictUrl = predictUrl == null ? "" : predictUrl.trim();
+        this.timeoutSeconds = Math.max(10, timeoutSeconds);
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
+                .connectTimeout(Duration.ofSeconds(Math.min(30, this.timeoutSeconds)))
                 .build();
     }
 
@@ -49,7 +52,7 @@ public class AiServerPatternPredictionClient implements PatternPredictionClient 
         byte[] body = multipartBody(boundary, chartImage);
 
         HttpRequest request = HttpRequest.newBuilder(URI.create(predictUrl))
-                .timeout(Duration.ofSeconds(30))
+                .timeout(Duration.ofSeconds(timeoutSeconds))
                 .header("Content-Type", "multipart/form-data; boundary=" + boundary)
                 .POST(HttpRequest.BodyPublishers.ofByteArray(body))
                 .build();
