@@ -110,15 +110,21 @@ public class YahooFinanceStockMarketClient implements StockMarketClient {
             }
 
             JsonNode item = objectMapper.readTree(response.body()).path("datas").path(0);
-            Optional<BigDecimal> price = decimalText(item.path("closePriceRaw"))
+            JsonNode overMarketPriceInfo = item.path("overMarketPriceInfo");
+            Optional<BigDecimal> price = decimalText(overMarketPriceInfo.path("overPrice"))
+                    .or(() -> decimalText(item.path("closePriceRaw")))
                     .or(() -> decimalText(item.path("closePrice")));
             if (price.isEmpty()) {
                 return Optional.empty();
             }
 
-            BigDecimal changeRate = decimalText(item.path("fluctuationsRatioRaw"))
+            BigDecimal changeRate = decimalText(overMarketPriceInfo.path("fluctuationsRatio"))
+                    .or(() -> decimalText(item.path("fluctuationsRatioRaw")))
                     .or(() -> decimalText(item.path("fluctuationsRatio")))
                     .orElse(stock.fallbackChangeRate());
+            BigDecimal normalizedChangeRate = changeRate == null
+                    ? null
+                    : changeRate.setScale(2, RoundingMode.HALF_UP);
 
             return Optional.of(new StockResponse(
                     stock.symbol(),
@@ -127,7 +133,7 @@ public class YahooFinanceStockMarketClient implements StockMarketClient {
                     stock.sector(),
                     stock.industry(),
                     price.get().setScale(0, RoundingMode.HALF_UP),
-                    changeRate.setScale(2, RoundingMode.HALF_UP),
+                    normalizedChangeRate,
                     stock.description()
             ));
         } catch (IOException | InterruptedException | RuntimeException error) {

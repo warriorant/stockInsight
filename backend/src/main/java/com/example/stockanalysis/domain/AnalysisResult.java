@@ -39,12 +39,6 @@ public class AnalysisResult {
     private String risk;
 
     @Column(nullable = false)
-    private Integer score;
-
-    @Column(nullable = false, length = 32)
-    private String rating;
-
-    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     protected AnalysisResult() {
@@ -56,9 +50,7 @@ public class AnalysisResult {
             String summary,
             String technicalAnalysis,
             String fundamentalAnalysis,
-            String risk,
-            Integer score,
-            String rating
+            String risk
     ) {
         this.stock = stock;
         this.symbol = symbol;
@@ -66,8 +58,6 @@ public class AnalysisResult {
         this.technicalAnalysis = technicalAnalysis;
         this.fundamentalAnalysis = fundamentalAnalysis;
         this.risk = risk;
-        this.score = score;
-        this.rating = rating;
         this.createdAt = LocalDateTime.now();
     }
 
@@ -123,22 +113,6 @@ public class AnalysisResult {
         this.risk = risk;
     }
 
-    public Integer getScore() {
-        return score;
-    }
-
-    public void setScore(Integer score) {
-        this.score = score;
-    }
-
-    public String getRating() {
-        return rating;
-    }
-
-    public void setRating(String rating) {
-        this.rating = rating;
-    }
-
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -147,4 +121,3 @@ public class AnalysisResult {
         this.createdAt = createdAt;
     }
 }
-

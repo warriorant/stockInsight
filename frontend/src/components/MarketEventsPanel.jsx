@@ -26,7 +26,7 @@ function MarketEventsPanel({ events = [], compact = false, title = '시장 체�
       <div className="event-panel-head">
         <span className="eyebrow">
           <CalendarDays size={16} aria-hidden="true" />
-          경제 일정
+          시장 일정
         </span>
         <h2>{title}</h2>
       </div>

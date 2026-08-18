@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, RefreshCw } from '../icons.js';
-import AiAnalysisCard from '../components/AiAnalysisCard.jsx';
-import FinancialMetrics from '../components/FinancialMetrics.jsx';
-import MarketEventsPanel from '../components/MarketEventsPanel.jsx';
+import DataSourceBadges from '../components/DataSourceBadges.jsx';
+// import FinancialMetrics from '../components/FinancialMetrics.jsx';
+// import MarketEventsPanel from '../components/MarketEventsPanel.jsx';
+import PatternAnalysisCard from '../components/PatternAnalysisCard.jsx';
 import PriceChart from '../components/PriceChart.jsx';
 import { stocksApi } from '../api/stocksApi.js';
 
@@ -20,27 +21,29 @@ function StockDetailPage() {
   const { symbol } = useParams();
   const [stock, setStock] = useState(null);
   const [prices, setPrices] = useState([]);
-  const [financials, setFinancials] = useState(null);
-  const [analysis, setAnalysis] = useState(null);
-  const [events, setEvents] = useState([]);
+  // const [financials, setFinancials] = useState(null);
+  const [patternAnalysis, setPatternAnalysis] = useState(null);
+  // const [events, setEvents] = useState([]);
   const [range, setRange] = useState('3M');
   const [loading, setLoading] = useState(true);
-  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [patternLoading, setPatternLoading] = useState(false);
 
   const isPositive = useMemo(() => Number(stock?.changeRate ?? 0) >= 0, [stock]);
+  const hasPrice = stock?.currentPrice !== null && stock?.currentPrice !== undefined && Number(stock.currentPrice) > 0;
+  const hasChangeRate = stock?.changeRate !== null && stock?.changeRate !== undefined;
 
   useEffect(() => {
     const loadStaticData = async () => {
       setLoading(true);
       try {
-        const [stockData, financialData, analysisData] = await Promise.all([
+        const [stockData, patternData] = await Promise.all([
           stocksApi.getStock(symbol),
-          stocksApi.getFinancials(symbol),
-          stocksApi.getLatestAnalysis(symbol),
+          // stocksApi.getFinancials(symbol),
+          stocksApi.getLatestPatternAnalysis(symbol),
         ]);
         setStock(stockData);
-        setFinancials(financialData);
-        setAnalysis(analysisData);
+        // setFinancials(financialData);
+        setPatternAnalysis(patternData);
       } finally {
         setLoading(false);
       }
@@ -49,26 +52,27 @@ function StockDetailPage() {
     loadStaticData();
   }, [symbol]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadEvents = async () => {
-      try {
-        const eventData = await stocksApi.getStockEvents(symbol);
-        if (!cancelled) {
-          setEvents(eventData);
-        }
-      } catch (error) {
-        console.error('Failed to load market events.', error);
-      }
-    };
-
-    loadEvents();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [symbol]);
+  // 재무지표/시장 일정은 1차 배포 이후 외부 API 품질을 확정한 뒤 다시 노출합니다.
+  // useEffect(() => {
+  //   let cancelled = false;
+  //
+  //   const loadEvents = async () => {
+  //     try {
+  //       const eventData = await stocksApi.getStockEvents(symbol);
+  //       if (!cancelled) {
+  //         setEvents(eventData);
+  //       }
+  //     } catch (error) {
+  //       console.error('Failed to load market events.', error);
+  //     }
+  //   };
+  //
+  //   loadEvents();
+  //
+  //   return () => {
+  //     cancelled = true;
+  //   };
+  // }, [symbol]);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,13 +102,13 @@ function StockDetailPage() {
     };
   }, [symbol, range]);
 
-  const refreshAnalysis = async () => {
-    setAnalysisLoading(true);
+  const refreshPatternAnalysis = async () => {
+    setPatternLoading(true);
     try {
-      const data = await stocksApi.runAnalysis(symbol);
-      setAnalysis(data);
+      const data = await stocksApi.runPatternAnalysis(symbol);
+      setPatternAnalysis(data);
     } finally {
-      setAnalysisLoading(false);
+      setPatternLoading(false);
     }
   };
 
@@ -129,10 +133,12 @@ function StockDetailPage() {
         </div>
         <div className="quote-panel">
           <span>{stock.symbol}</span>
-          <strong>{currencyFormatter.format(stock.currentPrice)}</strong>
-          <em className={isPositive ? 'positive' : 'negative'}>{stock.changeRate}%</em>
+          <strong>{hasPrice ? currencyFormatter.format(stock.currentPrice) : '가격 확인 중'}</strong>
+          {hasChangeRate && <em className={isPositive ? 'positive' : 'negative'}>{stock.changeRate}%</em>}
         </div>
       </section>
+
+      <DataSourceBadges />
 
       <section className="detail-section">
         <div className="section-head">
@@ -156,8 +162,25 @@ function StockDetailPage() {
         <PriceChart data={prices} />
       </section>
 
-      <MarketEventsPanel events={events} compact title={`${stock.name}에 영향 줄 수 있는 일정`} />
+      <section className="detail-section">
+        <div className="section-head">
+          <div>
+            <span className="eyebrow">차트 패턴</span>
+            <h2>AI 패턴 분석과 과거 통계</h2>
+          </div>
+          <button type="button" className="ghost-button" onClick={refreshPatternAnalysis} disabled={patternLoading}>
+            <RefreshCw size={18} aria-hidden="true" />
+            갱신
+          </button>
+        </div>
+        <PatternAnalysisCard
+          analysis={patternAnalysis}
+          loading={patternLoading}
+          onRefresh={refreshPatternAnalysis}
+        />
+      </section>
 
+      {/* 재무지표는 OpenDART/시장지표 API 연결이 안정화된 뒤 2차 배포에서 다시 노출합니다.
       <section className="detail-section">
         <div className="section-head">
           <div>
@@ -167,20 +190,11 @@ function StockDetailPage() {
         </div>
         <FinancialMetrics financials={financials} />
       </section>
+      */}
 
-      <section className="detail-section">
-        <div className="section-head">
-          <div>
-            <span className="eyebrow">AI 분석</span>
-            <h2>AI 분석 결과</h2>
-          </div>
-          <button type="button" className="ghost-button" onClick={refreshAnalysis} disabled={analysisLoading}>
-            <RefreshCw size={18} aria-hidden="true" />
-            갱신
-          </button>
-        </div>
-        <AiAnalysisCard analysis={analysis} loading={analysisLoading} onRefresh={refreshAnalysis} />
-      </section>
+      {/* 시장 일정/뉴스성 이벤트는 외부 일정 API를 확정한 뒤 2차 배포에서 다시 노출합니다.
+      <MarketEventsPanel events={events} compact title={`${stock.name}에 영향 줄 수 있는 일정`} />
+      */}
     </div>
   );
 }

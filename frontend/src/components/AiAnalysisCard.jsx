@@ -11,13 +11,9 @@ function AiAnalysisCard({ analysis, loading, onRefresh }) {
         <div>
           <span className="eyebrow">
             <Brain size={16} aria-hidden="true" />
-            AI 분석
+            참고 분석
           </span>
-          <h2>{analysis.rating}</h2>
-        </div>
-        <div className="score-badge">
-          <span>{analysis.score}</span>
-          <small>/ 100</small>
+          <h2>정보 요약</h2>
         </div>
       </div>
 

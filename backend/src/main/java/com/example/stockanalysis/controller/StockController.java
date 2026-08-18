@@ -1,17 +1,21 @@
 package com.example.stockanalysis.controller;
 
 import com.example.stockanalysis.dto.AiAnalysisResponse;
+import com.example.stockanalysis.dto.ChartPatternAnalysisResponse;
 import com.example.stockanalysis.dto.FinancialDataResponse;
+import com.example.stockanalysis.dto.ManualChartPatternAnalysisRequest;
 import com.example.stockanalysis.dto.MarketEventResponse;
 import com.example.stockanalysis.dto.PricePointResponse;
 import com.example.stockanalysis.dto.StockResponse;
 import com.example.stockanalysis.service.AnalysisService;
+import com.example.stockanalysis.service.ChartPatternAnalysisService;
 import com.example.stockanalysis.service.MarketEventService;
 import com.example.stockanalysis.service.StockService;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,15 +27,18 @@ public class StockController {
     private final StockService stockService;
     private final AnalysisService analysisService;
     private final MarketEventService marketEventService;
+    private final ChartPatternAnalysisService chartPatternAnalysisService;
 
     public StockController(
             StockService stockService,
             AnalysisService analysisService,
-            MarketEventService marketEventService
+            MarketEventService marketEventService,
+            ChartPatternAnalysisService chartPatternAnalysisService
     ) {
         this.stockService = stockService;
         this.analysisService = analysisService;
         this.marketEventService = marketEventService;
+        this.chartPatternAnalysisService = chartPatternAnalysisService;
     }
 
     @GetMapping
@@ -75,5 +82,23 @@ public class StockController {
     @GetMapping("/{symbol}/analysis/latest")
     public AiAnalysisResponse getLatestAnalysis(@PathVariable String symbol) {
         return analysisService.getLatestAnalysis(symbol);
+    }
+
+    @PostMapping("/{symbol}/chart-pattern-analysis")
+    public ChartPatternAnalysisResponse analyzeChartPattern(@PathVariable String symbol) {
+        return chartPatternAnalysisService.analyze(symbol);
+    }
+
+    @PostMapping("/{symbol}/chart-pattern-analysis/test-candles")
+    public ChartPatternAnalysisResponse analyzeChartPatternWithCandles(
+            @PathVariable String symbol,
+            @RequestBody ManualChartPatternAnalysisRequest request
+    ) {
+        return chartPatternAnalysisService.analyzeWithCandles(symbol, request.targetDate(), request.candles());
+    }
+
+    @GetMapping("/{symbol}/chart-pattern-analysis/latest")
+    public ChartPatternAnalysisResponse getLatestChartPatternAnalysis(@PathVariable String symbol) {
+        return chartPatternAnalysisService.getLatestAnalysis(symbol);
     }
 }

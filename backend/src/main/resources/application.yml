@@ -10,8 +10,39 @@ spring:
 app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  stock-master:
+    krx-kind-url: ${KRX_KIND_STOCK_LIST_URL:https://kind.krx.co.kr/corpgeneral/corpList.do?method=download&marketType=stockMkt&searchType=13}
+  ai:
+    analysis-server:
+      url: ${AI_ANALYSIS_SERVER_URL:}
+      mock-enabled: ${AI_ANALYSIS_MOCK_ENABLED:false}
+    chart-image:
+      url: ${AI_CHART_IMAGE_URL:https://kospi-data-api.onrender.com/v1/render}
+      api-key: ${KOSPI_RENDER_API_KEY:}
+      mock-enabled: ${AI_CHART_IMAGE_MOCK_ENABLED:false}
+    chart-pattern:
+      mock-enabled: ${AI_CHART_PATTERN_MOCK_ENABLED:false}
+    pattern-server:
+      predict-url: ${AI_PATTERN_SERVER_PREDICT_URL:https://stock-api-server-r63u.onrender.com/predict/}
+  financials:
+    opendart:
+      api-key: ${OPENDART_API_KEY:}
   market-events:
     look-ahead-days: ${MARKET_EVENTS_LOOK_AHEAD_DAYS:60}
     refresh-ms: ${MARKET_EVENTS_REFRESH_MS:21600000}
     fmp:
       api-key: ${FMP_API_KEY:}
+    trading-economics:
+      api-key: ${TRADING_ECONOMICS_API_KEY:}
+    fred:
+      api-key: ${FRED_API_KEY:}
+  market-data:
+    toss:
+      client-id: ${TOSS_CLIENT_ID:}
+      client-secret: ${TOSS_CLIENT_SECRET:}
+      token-url: ${TOSS_TOKEN_URL:https://openapi.tossinvest.com/oauth2/token}
+      candles-url: ${TOSS_CANDLES_URL:https://openapi.tossinvest.com/api/v1/candles}
+  chart-pattern-batch:
+    enabled: ${CHART_PATTERN_BATCH_ENABLED:false}
+    cron: ${CHART_PATTERN_BATCH_CRON:0 0 22 * * MON-FRI}
+    delay-ms: ${CHART_PATTERN_BATCH_DELAY_MS:1000}

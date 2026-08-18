@@ -20,6 +20,9 @@ public class Stock {
     @Column(nullable = false, unique = true, length = 32)
     private String symbol;
 
+    @Column(length = 32)
+    private String externalSymbol;
+
     @Column(nullable = false)
     private String name;
 
@@ -32,10 +35,10 @@ public class Stock {
     @Column(nullable = false)
     private String industry;
 
-    @Column(nullable = false, precision = 19, scale = 2)
+    @Column(precision = 19, scale = 2)
     private BigDecimal currentPrice;
 
-    @Column(nullable = false, precision = 7, scale = 2)
+    @Column(precision = 7, scale = 2)
     private BigDecimal changeRate;
 
     @Column(length = 1000)
@@ -50,6 +53,7 @@ public class Stock {
 
     public Stock(
             String symbol,
+            String externalSymbol,
             String name,
             String market,
             String sector,
@@ -59,6 +63,7 @@ public class Stock {
             String description
     ) {
         this.symbol = symbol;
+        this.externalSymbol = externalSymbol;
         this.name = name;
         this.market = market;
         this.sector = sector;
@@ -80,6 +85,14 @@ public class Stock {
 
     public void setSymbol(String symbol) {
         this.symbol = symbol;
+    }
+
+    public String getExternalSymbol() {
+        return externalSymbol;
+    }
+
+    public void setExternalSymbol(String externalSymbol) {
+        this.externalSymbol = externalSymbol;
     }
 
     public String getName() {
@@ -154,4 +167,3 @@ public class Stock {
         this.updatedAt = updatedAt;
     }
 }
-

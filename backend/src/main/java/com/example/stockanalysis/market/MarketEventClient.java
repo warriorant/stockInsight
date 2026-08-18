@@ -7,4 +7,8 @@ import java.util.List;
 public interface MarketEventClient {
 
     List<MarketEventResponse> getEvents(LocalDate from, LocalDate to);
+
+    default String sourceName() {
+        return getClass().getSimpleName();
+    }
 }

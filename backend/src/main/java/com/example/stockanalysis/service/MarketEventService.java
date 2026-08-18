@@ -4,9 +4,12 @@ import com.example.stockanalysis.dto.MarketEventResponse;
 import com.example.stockanalysis.market.MarketEventClient;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,15 +22,15 @@ public class MarketEventService {
 
     private static final Logger log = LoggerFactory.getLogger(MarketEventService.class);
 
-    private final MarketEventClient marketEventClient;
+    private final List<MarketEventClient> marketEventClients;
     private final int lookAheadDays;
     private final AtomicReference<List<MarketEventResponse>> cachedEvents = new AtomicReference<>(List.of());
 
     public MarketEventService(
-            MarketEventClient marketEventClient,
+            List<MarketEventClient> marketEventClients,
             @Value("${app.market-events.look-ahead-days:60}") int lookAheadDays
     ) {
-        this.marketEventClient = marketEventClient;
+        this.marketEventClients = marketEventClients;
         this.lookAheadDays = lookAheadDays;
     }
 
@@ -39,19 +42,38 @@ public class MarketEventService {
     @Scheduled(fixedDelayString = "${app.market-events.refresh-ms:21600000}")
     public void refreshEvents() {
         LocalDate today = LocalDate.now();
-        List<MarketEventResponse> apiEvents = marketEventClient.getEvents(today, today.plusDays(lookAheadDays));
+        LocalDate endDate = today.plusDays(lookAheadDays);
+        List<MarketEventResponse> apiEvents = new ArrayList<>();
+
+        for (MarketEventClient client : marketEventClients) {
+            try {
+                List<MarketEventResponse> events = client.getEvents(today, endDate);
+                apiEvents.addAll(events);
+                log.info("Market event source loaded. source={}, count={}", client.sourceName(), events.size());
+            } catch (RuntimeException error) {
+                log.warn("Market event source failed. source={}", client.sourceName(), error);
+            }
+        }
+
         List<MarketEventResponse> nextEvents = apiEvents.isEmpty() ? fallbackEvents(today) : apiEvents;
 
-        cachedEvents.set(nextEvents.stream()
-                .sorted(Comparator.comparing(MarketEventResponse::scheduledDate))
+        cachedEvents.set(deduplicate(nextEvents).stream()
+                .sorted(Comparator
+                        .comparing(MarketEventResponse::scheduledDate)
+                        .thenComparingInt(event -> importanceRank(event.importance()))
+                        .thenComparing(MarketEventResponse::title))
+                .limit(60)
                 .toList());
 
-        log.info("Market events refreshed. source={}, count={}", apiEvents.isEmpty() ? "fallback" : "fmp", nextEvents.size());
+        log.info("Market events refreshed. source={}, count={}", apiEvents.isEmpty() ? "fallback" : "api", nextEvents.size());
     }
 
     public List<MarketEventResponse> getUpcomingEvents() {
         return cachedEvents.get().stream()
-                .sorted(Comparator.comparing(MarketEventResponse::scheduledDate))
+                .sorted(Comparator
+                        .comparing(MarketEventResponse::scheduledDate)
+                        .thenComparingInt(event -> importanceRank(event.importance()))
+                        .thenComparing(MarketEventResponse::title))
                 .toList();
     }
 
@@ -59,67 +81,55 @@ public class MarketEventService {
         String normalizedSymbol = symbol == null ? "" : symbol.trim().toUpperCase(Locale.ROOT);
 
         return cachedEvents.get().stream()
-                .filter(event -> event.affectedSymbols().contains(normalizedSymbol))
-                .sorted(Comparator.comparing(MarketEventResponse::scheduledDate))
+                .filter(event -> event.affectedSymbols().contains(normalizedSymbol) || event.affectedSymbols().contains("ALL"))
+                .sorted(Comparator
+                        .comparing(MarketEventResponse::scheduledDate)
+                        .thenComparingInt(event -> importanceRank(event.importance()))
+                        .thenComparing(MarketEventResponse::title))
                 .toList();
+    }
+
+    private List<MarketEventResponse> deduplicate(List<MarketEventResponse> events) {
+        Map<String, MarketEventResponse> uniqueEvents = new LinkedHashMap<>();
+        for (MarketEventResponse event : events) {
+            String key = "%s|%s".formatted(event.scheduledDate(), event.title().toLowerCase(Locale.ROOT));
+            uniqueEvents.putIfAbsent(key, event);
+        }
+        return List.copyOf(uniqueEvents.values());
+    }
+
+    private int importanceRank(String importance) {
+        return switch (importance) {
+            case "높음" -> 0;
+            case "보통" -> 1;
+            case "낮음" -> 2;
+            default -> 3;
+        };
     }
 
     private List<MarketEventResponse> fallbackEvents(LocalDate today) {
         return List.of(
                 new MarketEventResponse(
-                        "fallback-us-cpi",
-                        "미국 소비자물가지수(CPI) 발표",
-                        "물가",
-                        today.plusDays(12),
-                        "높음",
-                        "물가가 예상보다 높으면 금리 인하 기대가 약해질 수 있습니다.",
-                        "성장주와 반도체처럼 미래 기대가 큰 종목은 금리 전망 변화에 더 민감하게 움직일 수 있어요.",
-                        List.of("기술", "커뮤니케이션", "경기소비재"),
-                        List.of("SAMSUNG", "SKHYNIX", "NAVER", "KAKAO", "HYUNDAI")
-                ),
-                new MarketEventResponse(
-                        "fallback-fomc",
-                        "미국 FOMC 금리 결정",
-                        "금리",
-                        today.plusDays(20),
-                        "높음",
-                        "기준금리와 향후 금리 방향에 대한 발언은 전 세계 증시에 영향을 줍니다.",
-                        "금리가 내려갈 것 같으면 주식시장에는 대체로 우호적이고, 금리가 오래 높게 유지될 것 같으면 부담이 될 수 있어요.",
-                        List.of("기술", "커뮤니케이션", "산업재", "경기소비재"),
-                        List.of("SAMSUNG", "SKHYNIX", "NAVER", "KAKAO", "HYUNDAI", "LGENERGY")
-                ),
-                new MarketEventResponse(
-                        "fallback-kr-rate",
-                        "한국은행 기준금리 결정",
-                        "금리",
-                        today.plusDays(27),
+                        "fallback-api-setup",
+                        "경제 일정 API 키 설정 필요",
+                        "연동",
+                        today.plusDays(1),
                         "보통",
-                        "국내 금리 방향은 환율, 소비, 기업 자금 조달 비용에 영향을 줍니다.",
-                        "금리가 높으면 기업이 돈을 빌리는 비용이 커지고, 소비 심리도 약해질 수 있어요.",
-                        List.of("경기소비재", "산업재", "커뮤니케이션"),
-                        List.of("KAKAO", "NAVER", "HYUNDAI", "LGENERGY")
+                        "Trading Economics, FRED, FMP 키가 없거나 호출에 실패해 기본 안내 일정만 표시하고 있습니다.",
+                        "실제 CPI, 고용, 실적 발표 일정을 보려면 백엔드 실행 환경에 API 키를 넣으면 됩니다.",
+                        List.of("전체"),
+                        List.of("ALL")
                 ),
                 new MarketEventResponse(
-                        "fallback-quadruple-witching",
-                        "네 마녀의 날",
+                        "fallback-rule-based",
+                        "규칙 기반 일정은 키 없이도 자동 계산",
                         "수급",
-                        today.plusDays(33),
+                        today.plusDays(2),
                         "보통",
-                        "주가지수 선물, 옵션 등 여러 파생상품 만기일이 겹치는 날입니다.",
-                        "기업 가치가 갑자기 바뀌는 날이라기보다, 큰 자금의 포지션 정리 때문에 장중 변동성이 커질 수 있는 날이에요.",
-                        List.of("기술", "커뮤니케이션", "산업재", "경기소비재"),
-                        List.of("SAMSUNG", "SKHYNIX", "NAVER", "KAKAO", "HYUNDAI", "LGENERGY")
-                ),
-                new MarketEventResponse(
-                        "fallback-memory-cycle",
-                        "메모리 반도체 업황 점검",
-                        "업종",
-                        today.plusDays(40),
-                        "높음",
-                        "DRAM, NAND 가격 전망은 국내 반도체 기업 실적 기대에 직접적으로 연결됩니다.",
-                        "반도체 기업은 제품 가격이 좋아질 것이라는 기대만으로도 주가가 먼저 움직일 때가 많아요.",
-                        List.of("기술"),
-                        List.of("SAMSUNG", "SKHYNIX")
+                        "네마녀의 날, 한국·미국 선물옵션 동시 만기일 같은 반복 일정은 외부 API 없이 백엔드에서 계산합니다.",
+                        "실제 기업 실적이나 거시경제 발표처럼 날짜가 계속 바뀌는 일정은 외부 API가 필요합니다.",
+                        List.of("전체"),
+                        List.of("ALL")
                 )
         );
     }

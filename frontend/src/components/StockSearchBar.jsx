@@ -68,8 +68,8 @@ function StockSearchBar({ compact = false }) {
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
           onFocus={() => normalizedKeyword && setOpen(true)}
-          placeholder="종목명 또는 심볼 검색"
-          aria-label="종목명 또는 심볼 검색"
+          placeholder="종목명 또는 6자리 코드 검색"
+          aria-label="종목명 또는 6자리 코드 검색"
         />
         {keyword && (
           <button type="button" className="icon-button" onClick={() => setKeyword('')} aria-label="검색어 지우기">

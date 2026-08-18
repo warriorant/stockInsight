@@ -9,6 +9,8 @@ const currencyFormatter = new Intl.NumberFormat('ko-KR', {
 
 function StockCard({ stock }) {
   const isPositive = Number(stock.changeRate) >= 0;
+  const hasPrice = Number(stock.currentPrice) > 0;
+  const hasChangeRate = stock.changeRate !== null && stock.changeRate !== undefined;
 
   return (
     <Link to={`/stocks/${stock.symbol}`} className="stock-card">
@@ -23,11 +25,13 @@ function StockCard({ stock }) {
       </div>
 
       <div className="stock-price-row">
-        <span>{currencyFormatter.format(stock.currentPrice)}</span>
-        <em className={isPositive ? 'positive' : 'negative'}>
-          {isPositive ? <TrendingUp size={16} aria-hidden="true" /> : <TrendingDown size={16} aria-hidden="true" />}
-          {stock.changeRate}%
-        </em>
+        <span>{hasPrice ? currencyFormatter.format(stock.currentPrice) : '상세에서 확인'}</span>
+        {hasPrice && hasChangeRate && (
+          <em className={isPositive ? 'positive' : 'negative'}>
+            {isPositive ? <TrendingUp size={16} aria-hidden="true" /> : <TrendingDown size={16} aria-hidden="true" />}
+            {stock.changeRate}%
+          </em>
+        )}
       </div>
 
       <div className="stock-meta">

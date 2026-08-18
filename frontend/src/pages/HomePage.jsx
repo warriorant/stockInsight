@@ -3,14 +3,14 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Brain, LineChart, ListFilter } from '../icons.js';
 import StockSearchBar from '../components/StockSearchBar.jsx';
 import StockCard from '../components/StockCard.jsx';
-import MarketEventsPanel from '../components/MarketEventsPanel.jsx';
+// import MarketEventsPanel from '../components/MarketEventsPanel.jsx';
 import { stocksApi } from '../api/stocksApi.js';
 
 const LIVE_REFRESH_MS = 7000;
 
 function HomePage() {
   const [stocks, setStocks] = useState([]);
-  const [events, setEvents] = useState([]);
+  // const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,13 +22,11 @@ function HomePage() {
       }
 
       try {
-        const [data, eventData] = await Promise.all([
-          stocksApi.getStocks(),
-          stocksApi.getMarketEvents(),
-        ]);
+        const data = await stocksApi.getStocks();
+        // const eventData = await stocksApi.getMarketEvents();
         if (!cancelled) {
           setStocks(data.slice(0, 3));
-          setEvents(eventData.slice(0, 3));
+          // setEvents(eventData.slice(0, 3));
         }
       } catch (error) {
         console.error('Failed to refresh live stocks.', error);
@@ -56,8 +54,8 @@ function HomePage() {
             <Brain size={16} aria-hidden="true" />
             주린이용 실시간 분석
           </span>
-          <h1>어려운 숫자를 쉬운 투자 언어로 바꿔서 봅니다.</h1>
-          <p>실시간 가격, 재무지표 해석, 시장 이벤트를 한 화면에서 연결해 보여줍니다.</p>
+          <h1>주식 차트의 모양을 AI로 읽어봅니다.</h1>
+          <p>종목을 검색하고 가격 흐름과 AI 차트 패턴 분석을 먼저 확인합니다.</p>
         </div>
         <StockSearchBar />
       </section>
@@ -68,7 +66,7 @@ function HomePage() {
           <span>종목 목록</span>
           <ArrowRight size={18} aria-hidden="true" />
         </Link>
-        <Link to="/stocks/SAMSUNG">
+        <Link to="/stocks/005930">
           <LineChart size={22} aria-hidden="true" />
           <span>삼성전자</span>
           <ArrowRight size={18} aria-hidden="true" />
@@ -96,7 +94,9 @@ function HomePage() {
         </div>
       )}
 
+      {/* 시장 일정 패널은 외부 일정 API 연결 후 2차 배포에서 다시 노출합니다.
       {!loading && <MarketEventsPanel events={events} title="이번 주 시장 체크포인트" />}
+      */}
     </div>
   );
 }

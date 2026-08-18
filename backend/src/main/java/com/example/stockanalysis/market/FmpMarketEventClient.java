@@ -4,12 +4,11 @@ import com.example.stockanalysis.dto.MarketEventResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -17,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,8 +28,37 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class FmpMarketEventClient implements MarketEventClient {
 
     private static final Logger log = LoggerFactory.getLogger(FmpMarketEventClient.class);
-    private static final String BASE_URL = "https://financialmodelingprep.com/stable/economic-calendar";
-    private static final List<String> WATCH_COUNTRIES = List.of("US", "USA", "UNITED STATES", "KR", "KOR", "SOUTH KOREA", "KOREA");
+    private static final String BASE_URL = "https://financialmodelingprep.com/stable";
+    private static final Map<String, List<String>> WATCH_SYMBOL_MAP = Map.ofEntries(
+            Map.entry("005930", List.of("SAMSUNG")),
+            Map.entry("005930.KS", List.of("SAMSUNG")),
+            Map.entry("000660", List.of("SKHYNIX")),
+            Map.entry("000660.KS", List.of("SKHYNIX")),
+            Map.entry("035420", List.of("NAVER")),
+            Map.entry("035420.KS", List.of("NAVER")),
+            Map.entry("035720", List.of("KAKAO")),
+            Map.entry("035720.KS", List.of("KAKAO")),
+            Map.entry("005380", List.of("HYUNDAI")),
+            Map.entry("005380.KS", List.of("HYUNDAI")),
+            Map.entry("373220", List.of("LGENERGY")),
+            Map.entry("373220.KS", List.of("LGENERGY")),
+            Map.entry("NVDA", List.of("SAMSUNG", "SKHYNIX")),
+            Map.entry("AMD", List.of("SAMSUNG", "SKHYNIX")),
+            Map.entry("INTC", List.of("SAMSUNG", "SKHYNIX")),
+            Map.entry("MU", List.of("SAMSUNG", "SKHYNIX")),
+            Map.entry("TSM", List.of("SAMSUNG", "SKHYNIX")),
+            Map.entry("ASML", List.of("SAMSUNG", "SKHYNIX")),
+            Map.entry("AVGO", List.of("SAMSUNG", "SKHYNIX")),
+            Map.entry("AAPL", List.of("SAMSUNG", "SKHYNIX", "NAVER", "KAKAO")),
+            Map.entry("MSFT", List.of("SAMSUNG", "SKHYNIX", "NAVER", "KAKAO")),
+            Map.entry("GOOGL", List.of("NAVER", "KAKAO")),
+            Map.entry("META", List.of("NAVER", "KAKAO")),
+            Map.entry("AMZN", List.of("NAVER", "KAKAO")),
+            Map.entry("TSLA", List.of("HYUNDAI", "LGENERGY")),
+            Map.entry("GM", List.of("HYUNDAI", "LGENERGY")),
+            Map.entry("F", List.of("HYUNDAI", "LGENERGY")),
+            Map.entry("TM", List.of("HYUNDAI"))
+    );
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
@@ -52,11 +81,25 @@ public class FmpMarketEventClient implements MarketEventClient {
             return List.of();
         }
 
-        URI uri = UriComponentsBuilder.fromUriString(BASE_URL)
+        List<MarketEventResponse> events = new ArrayList<>();
+        events.addAll(fetchEvents("earnings-calendar", CorporateEventType.EARNINGS, from, to));
+        events.addAll(fetchEvents("dividends-calendar", CorporateEventType.DIVIDEND, from, to));
+        events.addAll(fetchEvents("ipos-calendar", CorporateEventType.IPO, from, to));
+
+        return events.stream()
+                .sorted(Comparator
+                        .comparing(MarketEventResponse::scheduledDate)
+                        .thenComparing(MarketEventResponse::title))
+                .limit(30)
+                .toList();
+    }
+
+    private List<MarketEventResponse> fetchEvents(String endpoint, CorporateEventType type, LocalDate from, LocalDate to) {
+        URI uri = UriComponentsBuilder.fromUriString("%s/%s".formatted(BASE_URL, endpoint))
                 .queryParam("from", from)
                 .queryParam("to", to)
-                .queryParam("apikey", URLEncoder.encode(apiKey, StandardCharsets.UTF_8))
-                .build(true)
+                .queryParam("apikey", apiKey)
+                .build()
                 .toUri();
 
         HttpRequest request = HttpRequest.newBuilder(uri)
@@ -69,75 +112,108 @@ public class FmpMarketEventClient implements MarketEventClient {
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                log.warn("FMP economic calendar returned status {}", response.statusCode());
+                log.warn("FMP {} returned status {}", endpoint, response.statusCode());
                 return List.of();
             }
 
             JsonNode root = objectMapper.readTree(response.body());
             if (!root.isArray()) {
-                log.warn("FMP economic calendar returned non-array payload");
+                log.warn("FMP {} returned non-array payload", endpoint);
                 return List.of();
             }
 
             List<MarketEventResponse> events = new ArrayList<>();
             for (JsonNode item : root) {
-                toMarketEvent(item)
+                toMarketEvent(item, type)
                         .filter(event -> !event.scheduledDate().isBefore(from) && !event.scheduledDate().isAfter(to))
-                        .filter(this::isRelevant)
                         .ifPresent(events::add);
             }
-
-            return events.stream()
-                    .sorted(Comparator
-                            .comparing(MarketEventResponse::scheduledDate)
-                            .thenComparing(MarketEventResponse::importance)
-                            .thenComparing(MarketEventResponse::title))
-                    .limit(24)
-                    .toList();
+            return events.stream().limit(type == CorporateEventType.IPO ? 6 : 18).toList();
         } catch (IOException | InterruptedException | RuntimeException error) {
             if (error instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
-            log.warn("FMP economic calendar request failed", error);
+            log.warn("FMP {} request failed", endpoint, error);
             return List.of();
         }
     }
 
-    private Optional<MarketEventResponse> toMarketEvent(JsonNode item) {
-        String rawTitle = text(item, "event")
-                .or(() -> text(item, "title"))
-                .or(() -> text(item, "name"))
-                .orElse("");
+    private Optional<MarketEventResponse> toMarketEvent(JsonNode item, CorporateEventType type) {
         Optional<LocalDate> scheduledDate = eventDate(item);
-        if (rawTitle.isBlank() || scheduledDate.isEmpty()) {
+        if (scheduledDate.isEmpty()) {
             return Optional.empty();
         }
 
-        String country = text(item, "country").orElse("");
-        EventKind eventKind = classify(rawTitle);
-        String title = localizedTitle(country, rawTitle, eventKind);
-        String id = "fmp-%s-%s".formatted(
-                scheduledDate.get(),
-                rawTitle.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9가-힣]+", "-").replaceAll("(^-|-$)", "")
-        );
+        String symbol = text(item, "symbol").orElse("");
+        String company = text(item, "companyName")
+                .or(() -> text(item, "company"))
+                .or(() -> text(item, "name"))
+                .orElse(symbol);
+        List<String> affectedSymbols = affectedSymbols(symbol, company, type);
+        if (affectedSymbols.isEmpty()) {
+            return Optional.empty();
+        }
 
+        String id = "fmp-%s-%s-%s".formatted(type.name().toLowerCase(Locale.ROOT), scheduledDate.get(), normalizeId(symbol, company));
         return Optional.of(new MarketEventResponse(
                 id,
-                title,
-                eventKind.category,
+                title(type, company, symbol),
+                type.category,
                 scheduledDate.get(),
-                importance(item),
-                eventKind.summary,
-                eventKind.beginnerImpact,
-                eventKind.relatedSectors,
-                eventKind.affectedSymbols
+                importance(type),
+                summary(type, item, company, symbol),
+                beginnerImpact(type),
+                relatedSectors(affectedSymbols, type),
+                affectedSymbols
         ));
+    }
+
+    private List<String> affectedSymbols(String symbol, String company, CorporateEventType type) {
+        String normalizedSymbol = symbol == null ? "" : symbol.trim().toUpperCase(Locale.ROOT);
+        List<String> mappedSymbols = WATCH_SYMBOL_MAP.getOrDefault(normalizedSymbol, List.of());
+        if (!mappedSymbols.isEmpty()) {
+            return mappedSymbols;
+        }
+
+        String normalizedCompany = company == null ? "" : company.toLowerCase(Locale.ROOT);
+        if (normalizedCompany.contains("nvidia") || normalizedCompany.contains("amd") || normalizedCompany.contains("micron")
+                || normalizedCompany.contains("tsmc") || normalizedCompany.contains("asml")) {
+            return List.of("SAMSUNG", "SKHYNIX");
+        }
+        if (normalizedCompany.contains("tesla") || normalizedCompany.contains("general motors") || normalizedCompany.contains("ford")) {
+            return List.of("HYUNDAI", "LGENERGY");
+        }
+        if (normalizedCompany.contains("alphabet") || normalizedCompany.contains("meta") || normalizedCompany.contains("microsoft")
+                || normalizedCompany.contains("amazon")) {
+            return List.of("NAVER", "KAKAO");
+        }
+
+        return type == CorporateEventType.IPO ? List.of("ALL") : List.of();
+    }
+
+    private List<String> relatedSectors(List<String> affectedSymbols, CorporateEventType type) {
+        if (type == CorporateEventType.IPO || affectedSymbols.contains("ALL")) {
+            return List.of("전체", "시장심리");
+        }
+
+        List<String> sectors = new ArrayList<>();
+        if (affectedSymbols.stream().anyMatch(symbol -> symbol.equals("SAMSUNG") || symbol.equals("SKHYNIX"))) {
+            sectors.add("반도체");
+        }
+        if (affectedSymbols.stream().anyMatch(symbol -> symbol.equals("NAVER") || symbol.equals("KAKAO"))) {
+            sectors.add("플랫폼");
+        }
+        if (affectedSymbols.stream().anyMatch(symbol -> symbol.equals("HYUNDAI") || symbol.equals("LGENERGY"))) {
+            sectors.add("자동차·배터리");
+        }
+        return sectors.isEmpty() ? List.of("전체") : sectors;
     }
 
     private Optional<LocalDate> eventDate(JsonNode item) {
         return text(item, "date")
-                .or(() -> text(item, "releaseDate"))
-                .or(() -> text(item, "time"))
+                .or(() -> text(item, "paymentDate"))
+                .or(() -> text(item, "recordDate"))
+                .or(() -> text(item, "fiscalDateEnding"))
                 .flatMap(value -> {
                     String datePart = value.length() >= 10 ? value.substring(0, 10) : value;
                     try {
@@ -158,156 +234,86 @@ public class FmpMarketEventClient implements MarketEventClient {
         return text.isBlank() ? Optional.empty() : Optional.of(text);
     }
 
-    private String importance(JsonNode item) {
-        String rawImpact = text(item, "impact")
-                .or(() -> text(item, "importance"))
-                .orElse("")
-                .toLowerCase(Locale.ROOT);
-
-        if (rawImpact.contains("high") || rawImpact.contains("3") || rawImpact.contains("높")) {
-            return "높음";
-        }
-        if (rawImpact.contains("low") || rawImpact.contains("1") || rawImpact.contains("낮")) {
-            return "낮음";
-        }
-        return "보통";
-    }
-
-    private boolean isRelevant(MarketEventResponse event) {
-        if ("높음".equals(event.importance())) {
-            return true;
-        }
-
-        String title = event.title().toLowerCase(Locale.ROOT);
-        return title.contains("cpi")
-                || title.contains("물가")
-                || title.contains("금리")
-                || title.contains("fomc")
-                || title.contains("gdp")
-                || title.contains("고용")
-                || title.contains("소매")
-                || title.contains("ppi")
-                || title.contains("실업");
-    }
-
-    private EventKind classify(String rawTitle) {
-        String title = rawTitle.toLowerCase(Locale.ROOT);
-
-        if (title.contains("cpi") || title.contains("inflation") || title.contains("consumer price")) {
-            return EventKind.INFLATION;
-        }
-        if (title.contains("ppi") || title.contains("producer price")) {
-            return EventKind.PRODUCER_PRICE;
-        }
-        if (title.contains("fomc") || title.contains("fed") || title.contains("interest rate") || title.contains("rate decision")) {
-            return EventKind.RATE;
-        }
-        if (title.contains("payroll") || title.contains("employment") || title.contains("unemployment") || title.contains("jobless")) {
-            return EventKind.JOBS;
-        }
-        if (title.contains("gdp")) {
-            return EventKind.GDP;
-        }
-        if (title.contains("retail sales")) {
-            return EventKind.RETAIL;
-        }
-
-        return EventKind.MARKET;
-    }
-
-    private String localizedTitle(String country, String rawTitle, EventKind eventKind) {
-        String prefix = countryPrefix(country);
-        return switch (eventKind) {
-            case INFLATION -> "%s소비자물가지수(CPI) 발표".formatted(prefix);
-            case PRODUCER_PRICE -> "%s생산자물가지수(PPI) 발표".formatted(prefix);
-            case RATE -> "%s금리 결정 발표".formatted(prefix);
-            case JOBS -> "%s고용 지표 발표".formatted(prefix);
-            case GDP -> "%sGDP 성장률 발표".formatted(prefix);
-            case RETAIL -> "%s소매판매 발표".formatted(prefix);
-            case MARKET -> prefix.isBlank() ? rawTitle : "%s%s".formatted(prefix, rawTitle);
+    private String title(CorporateEventType type, String company, String symbol) {
+        String displayName = company.isBlank() ? symbol : company;
+        return switch (type) {
+            case EARNINGS -> "%s 실적 발표".formatted(displayName);
+            case DIVIDEND -> "%s 배당 일정".formatted(displayName);
+            case IPO -> "%s IPO 일정".formatted(displayName);
         };
     }
 
-    private String countryPrefix(String country) {
-        String normalized = country == null ? "" : country.trim().toUpperCase(Locale.ROOT);
-        if (normalized.equals("US") || normalized.equals("USA") || normalized.equals("UNITED STATES")) {
-            return "미국 ";
-        }
-        if (normalized.equals("KR") || normalized.equals("KOR") || normalized.equals("SOUTH KOREA") || normalized.equals("KOREA")) {
-            return "한국 ";
-        }
-        return country == null || country.isBlank() ? "" : "%s ".formatted(country.trim());
+    private String summary(CorporateEventType type, JsonNode item, String company, String symbol) {
+        return switch (type) {
+            case EARNINGS -> {
+                String eps = text(item, "epsEstimated").or(() -> text(item, "eps")).orElse("");
+                String revenue = text(item, "revenueEstimated").or(() -> text(item, "revenue")).orElse("");
+                String detail = details("예상 EPS", eps, "예상 매출", revenue);
+                yield "%s(%s)의 실적 발표 일정입니다.%s".formatted(company, symbol, detail);
+            }
+            case DIVIDEND -> {
+                String dividend = text(item, "dividend").or(() -> text(item, "adjDividend")).orElse("");
+                String detail = dividend.isBlank() ? "" : " 배당금은 %s로 공시되어 있습니다.".formatted(dividend);
+                yield "%s(%s)의 배당 기준일 또는 지급 관련 일정입니다.%s".formatted(company, symbol, detail);
+            }
+            case IPO -> {
+                String exchange = text(item, "exchange").orElse("");
+                String priceRange = text(item, "priceRange").orElse("");
+                String detail = details("거래소", exchange, "공모가 범위", priceRange);
+                yield "새로 상장되는 기업 일정입니다.%s".formatted(detail);
+            }
+        };
     }
 
-    private enum EventKind {
-        INFLATION(
-                "물가",
-                "물가가 예상보다 높으면 금리 인하 기대가 약해질 수 있습니다.",
-                "성장주와 반도체처럼 미래 기대가 큰 종목은 금리 전망 변화에 더 민감하게 움직일 수 있어요.",
-                List.of("기술", "커뮤니케이션", "경기소비재"),
-                List.of("SAMSUNG", "SKHYNIX", "NAVER", "KAKAO", "HYUNDAI")
-        ),
-        PRODUCER_PRICE(
-                "물가",
-                "기업이 제품을 만들 때 드는 비용 흐름을 확인할 수 있는 지표입니다.",
-                "생산 비용이 오르면 기업 이익률이 눌릴 수 있어서 제조업과 수출주가 민감하게 반응할 수 있어요.",
-                List.of("기술", "산업재", "경기소비재"),
-                List.of("SAMSUNG", "SKHYNIX", "HYUNDAI", "LGENERGY")
-        ),
-        RATE(
-                "금리",
-                "기준금리와 향후 금리 방향에 대한 발언은 전 세계 증시에 영향을 줍니다.",
-                "금리가 내려갈 것 같으면 주식시장에는 대체로 우호적이고, 금리가 오래 높게 유지될 것 같으면 부담이 될 수 있어요.",
-                List.of("기술", "커뮤니케이션", "산업재", "경기소비재"),
-                List.of("SAMSUNG", "SKHYNIX", "NAVER", "KAKAO", "HYUNDAI", "LGENERGY")
-        ),
-        JOBS(
-                "고용",
-                "고용 지표는 경기 강도와 금리 전망을 함께 흔드는 주요 지표입니다.",
-                "고용이 너무 강하면 금리 인하가 늦어질 수 있고, 너무 약하면 경기 둔화 걱정이 커질 수 있어요.",
-                List.of("기술", "커뮤니케이션", "경기소비재"),
-                List.of("SAMSUNG", "SKHYNIX", "NAVER", "KAKAO", "HYUNDAI")
-        ),
-        GDP(
-                "경기",
-                "경제 전체가 얼마나 성장했는지 보여주는 대표 지표입니다.",
-                "성장률이 둔화되면 기업 실적 기대가 낮아질 수 있고, 예상보다 좋으면 경기민감주에 힘이 실릴 수 있어요.",
-                List.of("경기소비재", "산업재", "기술"),
-                List.of("SAMSUNG", "SKHYNIX", "HYUNDAI", "LGENERGY")
-        ),
-        RETAIL(
-                "소비",
-                "소비자가 실제로 돈을 얼마나 쓰고 있는지 보여주는 지표입니다.",
-                "소비가 좋으면 경기소비재와 플랫폼 기업에 긍정적일 수 있지만, 물가 압력으로 해석되면 금리 부담도 생길 수 있어요.",
-                List.of("경기소비재", "커뮤니케이션"),
-                List.of("NAVER", "KAKAO", "HYUNDAI")
-        ),
-        MARKET(
-                "시장",
-                "시장 전체 투자심리에 영향을 줄 수 있는 경제 일정입니다.",
-                "이벤트 당일에는 예상치와 실제 발표치 차이 때문에 장중 변동성이 커질 수 있어요.",
-                List.of("기술", "커뮤니케이션", "산업재", "경기소비재"),
-                List.of("SAMSUNG", "SKHYNIX", "NAVER", "KAKAO", "HYUNDAI", "LGENERGY")
-        );
+    private String details(String firstLabel, String firstValue, String secondLabel, String secondValue) {
+        List<String> parts = new ArrayList<>();
+        if (!firstValue.isBlank()) {
+            parts.add("%s: %s".formatted(firstLabel, formatValue(firstValue)));
+        }
+        if (!secondValue.isBlank()) {
+            parts.add("%s: %s".formatted(secondLabel, formatValue(secondValue)));
+        }
+        return parts.isEmpty() ? "" : " " + String.join(", ", parts) + ".";
+    }
+
+    private String formatValue(String value) {
+        try {
+            BigDecimal decimal = new BigDecimal(value);
+            return decimal.stripTrailingZeros().toPlainString();
+        } catch (NumberFormatException error) {
+            return value;
+        }
+    }
+
+    private String beginnerImpact(CorporateEventType type) {
+        return switch (type) {
+            case EARNINGS -> "같은 업종의 대표 기업 실적은 국내 관련 종목의 기대감에도 영향을 줄 수 있어요.";
+            case DIVIDEND -> "배당 일정은 주주환원 흐름을 보는 참고 자료입니다. 단기 주가보다 현금흐름 성향을 같이 보세요.";
+            case IPO -> "큰 IPO는 시장의 관심과 자금을 일부 흡수할 수 있어서 단기 수급에 영향을 줄 수 있어요.";
+        };
+    }
+
+    private String importance(CorporateEventType type) {
+        return switch (type) {
+            case EARNINGS -> "높음";
+            case DIVIDEND, IPO -> "보통";
+        };
+    }
+
+    private String normalizeId(String symbol, String company) {
+        String raw = symbol.isBlank() ? company : symbol;
+        return raw.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9가-힣]+", "-").replaceAll("(^-|-$)", "");
+    }
+
+    private enum CorporateEventType {
+        EARNINGS("실적"),
+        DIVIDEND("배당"),
+        IPO("IPO");
 
         private final String category;
-        private final String summary;
-        private final String beginnerImpact;
-        private final List<String> relatedSectors;
-        private final List<String> affectedSymbols;
 
-        EventKind(
-                String category,
-                String summary,
-                String beginnerImpact,
-                List<String> relatedSectors,
-                List<String> affectedSymbols
-        ) {
+        CorporateEventType(String category) {
             this.category = category;
-            this.summary = summary;
-            this.beginnerImpact = beginnerImpact;
-            this.relatedSectors = relatedSectors;
-            this.affectedSymbols = affectedSymbols;
         }
     }
 }

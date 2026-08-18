@@ -4,9 +4,6 @@ public record AiAnalysisResponse(
         String summary,
         String technicalAnalysis,
         String fundamentalAnalysis,
-        String risk,
-        Integer score,
-        String rating
+        String risk
 ) {
 }
-
