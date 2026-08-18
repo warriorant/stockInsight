@@ -33,10 +33,10 @@ const sources = [
     key: 'analysis',
     icon: Brain,
     label: '패턴 AI',
-    status: '연결 대기',
+    status: '실제 연동',
     source: 'AI 서버1/2',
-    tone: 'partial',
-    note: 'AI 서버1 URL 연결 후 실제 분류 실행',
+    tone: 'live',
+    note: 'DB 캔들로 이미지 생성 후 패턴 분류',
   },
   // 일정 데이터 출처는 외부 일정/뉴스 API 연결 뒤 다시 노출합니다.
   // {
