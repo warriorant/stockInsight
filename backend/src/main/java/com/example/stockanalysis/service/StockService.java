@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -39,7 +40,7 @@ public class StockService {
         this.stockMarketClient = stockMarketClient;
         this.financialDataClient = financialDataClient;
         this.stockPersistencePort = stockPersistencePort;
-        this.stocks = stockMasterClient.getKospiStocks(Map.of());
+        this.stocks = stockMasterClient.getKospiStocks(createFallbackStocks());
         this.stockPersistencePort.saveStockMaster(this.stocks.values());
     }
 
@@ -203,6 +204,51 @@ public class StockService {
                 "HYUNDAI", "005380",
                 "LGENERGY", "373220"
         );
+    }
+
+    private Map<String, StockDefinition> createFallbackStocks() {
+        Map<String, StockDefinition> result = new LinkedHashMap<>();
+        addFallbackStock(result, "005930", "삼성전자", "정보기술", "반도체 및 전자제품");
+        addFallbackStock(result, "000660", "SK하이닉스", "정보기술", "반도체");
+        addFallbackStock(result, "373220", "LG에너지솔루션", "산업재", "이차전지");
+        addFallbackStock(result, "005380", "현대차", "경기소비재", "자동차");
+        addFallbackStock(result, "000270", "기아", "경기소비재", "자동차");
+        addFallbackStock(result, "035420", "NAVER", "커뮤니케이션", "인터넷 서비스");
+        addFallbackStock(result, "035720", "카카오", "커뮤니케이션", "인터넷 서비스");
+        addFallbackStock(result, "051910", "LG화학", "소재", "화학");
+        addFallbackStock(result, "006400", "삼성SDI", "산업재", "이차전지");
+        addFallbackStock(result, "068270", "셀트리온", "헬스케어", "바이오의약품");
+        addFallbackStock(result, "012330", "현대모비스", "경기소비재", "자동차 부품");
+        addFallbackStock(result, "105560", "KB금융", "금융", "금융지주");
+        addFallbackStock(result, "055550", "신한지주", "금융", "금융지주");
+        addFallbackStock(result, "028260", "삼성물산", "산업재", "복합기업");
+        addFallbackStock(result, "096770", "SK이노베이션", "에너지", "정유 및 배터리");
+        addFallbackStock(result, "032830", "삼성생명", "금융", "생명보험");
+        addFallbackStock(result, "066570", "LG전자", "경기소비재", "전자제품");
+        addFallbackStock(result, "003550", "LG", "산업재", "지주회사");
+        addFallbackStock(result, "015760", "한국전력", "유틸리티", "전력");
+        addFallbackStock(result, "086790", "하나금융지주", "금융", "금융지주");
+        return Map.copyOf(result);
+    }
+
+    private void addFallbackStock(
+            Map<String, StockDefinition> result,
+            String symbol,
+            String name,
+            String sector,
+            String industry
+    ) {
+        result.put(symbol, new StockDefinition(
+                symbol,
+                symbol + ".KS",
+                name,
+                "KOSPI",
+                sector,
+                industry,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                "%s 코스피 상장사입니다. KRX 종목 목록을 불러오지 못할 때도 발표용 핵심 기능을 확인할 수 있도록 기본 목록에 포함되어 있습니다.".formatted(name)
+        ));
     }
 
     private FinancialDataResponse emptyFinancials() {

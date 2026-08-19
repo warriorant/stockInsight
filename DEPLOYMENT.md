@@ -39,6 +39,9 @@
 6. If no DB result exists, backend returns an "analysis preparing" response.
 ```
 
+If the KRX stock master download fails on a cloud server, the backend falls back to the same 20 presentation stocks used by the demo seed.
+This keeps the stock list and stock detail flow available even when KRX blocks or times out.
+
 AI server 1 and AI server 2 integration code remains in the backend, but the final presentation mode keeps on-demand AI calls disabled.
 The AI servers can be re-enabled later by changing environment variables.
 
@@ -257,3 +260,4 @@ Use `refresh=true` for real AI reruns only after enabling `CHART_PATTERN_AI_ON_D
 - Generated chart images are stored in `chart_pattern_period_results` as data URLs so cached results can show the exact image used for classification.
 - Old cached analysis rows created before image storage may not show images. The demo seed creates image-backed rows.
 - Current operation does not pre-run AI analysis for all KOSPI stocks.
+- If KRX is unavailable from the deployment server, the app still exposes the 20 seeded presentation stocks as a fallback stock master.
