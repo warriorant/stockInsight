@@ -2,6 +2,30 @@
 
 이 문서는 배포 담당자가 `git pull` 이후 바로 확인해야 할 실행/환경변수/운영 절차를 정리한 문서입니다.
 
+## 배포 담당자 빠른 요약
+
+발표용 현재 버전은 **AI 서버를 실시간 호출하지 않고**, 백엔드가 시작될 때 PostgreSQL에 20개 데모 분석 결과를 자동으로 넣은 뒤 사용자가 종목을 누르면 DB에서 바로 꺼내 보여주는 구조입니다.
+
+배포 담당자는 아래 순서대로 진행하면 됩니다.
+
+```text
+1. PostgreSQL 준비
+2. 백엔드 환경변수 설정
+3. backend/Dockerfile 기준으로 백엔드 빌드/실행
+4. 프론트엔드 빌드 시 VITE_API_BASE_URL을 배포된 백엔드 주소로 설정
+5. 프론트엔드 정적 파일 배포
+6. 백엔드 로그에서 데모 seed 삽입 확인
+```
+
+주의할 점:
+
+- `.env`는 프로젝트 루트에 두는 파일입니다. `backend/` 안에 넣지 않습니다.
+- 이 프로젝트의 DB 환경변수 이름은 `DB_URL`이 아니라 `SPRING_DATASOURCE_URL`입니다.
+- 발표 모드에서는 `CHART_PATTERN_AI_ON_DEMAND_ENABLED=false`를 유지합니다.
+- 발표 모드에서는 `CHART_PATTERN_BATCH_ENABLED=false`를 유지합니다. 코스피 전체 AI 분석 배치는 돌리지 않습니다.
+- 백엔드가 켜질 때 `CHART_PATTERN_DEMO_SEED_ENABLED=true`, `CHART_PATTERN_DEMO_SEED_RESET=true`면 데모 분석 20개가 자동 insert 됩니다.
+- 배포 DB는 로컬 노트북 DB가 아닙니다. Render PostgreSQL, AWS RDS, Supabase, Railway, 서버 내부 PostgreSQL 등 배포 환경에서 접근 가능한 PostgreSQL을 사용해야 합니다.
+
 ## Current Architecture
 
 현재 서비스의 기준 흐름은 다음과 같습니다.
@@ -61,6 +85,10 @@ KOSPI_RENDER_API_KEY=YOUR_RENDER_API_KEY
 
 AI_PATTERN_SERVER_PREDICT_URL=https://stock-api-server-r63u.onrender.com/predict/
 AI_PATTERN_SERVER_TIMEOUT_SECONDS=180
+AI_ANALYSIS_SERVER_URL=
+AI_CHART_IMAGE_MOCK_ENABLED=false
+AI_CHART_PATTERN_MOCK_ENABLED=false
+AI_ANALYSIS_MOCK_ENABLED=false
 CHART_PATTERN_AI_ON_DEMAND_ENABLED=false
 CHART_PATTERN_DEMO_SEED_ENABLED=true
 CHART_PATTERN_DEMO_SEED_RESET=true
@@ -86,6 +114,7 @@ VITE_API_BASE_URL=https://BACKEND_DOMAIN/api
 Important:
 
 - `SPRING_PROFILES_ACTIVE=postgres` is required for PostgreSQL persistence.
+- Use `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD`; the backend does not read `DB_URL`, `DB_USERNAME`, or `DB_PASSWORD`.
 - `CORS_ALLOWED_ORIGINS` must be the frontend deployment URL.
 - `VITE_API_BASE_URL` must be set when building the frontend.
 - `CHART_PATTERN_AI_ON_DEMAND_ENABLED=false` prevents user requests from calling AI server 1/2.

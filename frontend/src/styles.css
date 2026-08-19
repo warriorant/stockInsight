@@ -949,7 +949,7 @@ a {
   width: 100%;
   border: 1px solid #252d38;
   border-radius: 8px;
-  background: #ffffff;
+  background: #0b0e11;
   object-fit: contain;
 }
 
@@ -1081,6 +1081,7 @@ a {
 .period-pattern-card {
   display: grid;
   gap: 14px;
+  align-content: start;
   padding: 16px;
   border: 1px solid #252d38;
   border-radius: 8px;
@@ -1089,27 +1090,38 @@ a {
 
 .period-pattern-image {
   aspect-ratio: 16 / 10;
-  padding: 8px;
+  min-height: 170px;
+  max-height: 220px;
+  padding: 10px;
 }
 
-.period-pattern-card > div:first-child {
+.period-pattern-info {
   display: grid;
-  gap: 5px;
+  gap: 7px;
+  min-width: 0;
 }
 
-.period-pattern-card span {
+.period-pattern-info span {
   color: #848e9c;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 900;
 }
 
-.period-pattern-card strong {
+.period-pattern-info strong {
   color: #f5f6f7;
-  font-size: 21px;
+  font-size: 24px;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
 }
 
-.period-pattern-card em {
+.period-pattern-info em {
+  width: fit-content;
+  padding: 5px 9px;
+  border: 1px solid rgba(240, 185, 11, 0.4);
+  border-radius: 999px;
+  background: rgba(240, 185, 11, 0.1);
   color: #f0b90b;
+  font-size: 12px;
   font-style: normal;
   font-weight: 900;
 }

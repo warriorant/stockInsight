@@ -145,16 +145,44 @@ public class DemoChartPatternSeedService {
         String guide = guidePath(patternId);
         String svg = """
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
-                  <rect width="640" height="360" fill="#ffffff"/>
-                  <g stroke="#dde3ea" stroke-width="1">
-                    <path d="M48 58H600"/><path d="M48 126H600"/><path d="M48 194H600"/><path d="M48 262H600"/>
+                  <defs>
+                    <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%%" stop-color="#0ecb81" stop-opacity="0.36"/>
+                      <stop offset="100%%" stop-color="#0ecb81" stop-opacity="0"/>
+                    </linearGradient>
+                    <filter id="glow" x="-20%%" y="-20%%" width="140%%" height="140%%">
+                      <feGaussianBlur stdDeviation="3" result="blur"/>
+                      <feMerge>
+                        <feMergeNode in="blur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                      </feMerge>
+                    </filter>
+                  </defs>
+                  <rect width="640" height="360" rx="22" fill="#0b0e11"/>
+                  <rect x="18" y="18" width="604" height="324" rx="16" fill="#101820" stroke="#263241"/>
+                  <g stroke="#263241" stroke-width="1">
+                    <path d="M58 58H598"/><path d="M58 126H598"/><path d="M58 194H598"/><path d="M58 262H598"/>
+                    <path d="M58 58V302"/><path d="M190 58V302"/><path d="M322 58V302"/><path d="M454 58V302"/><path d="M598 58V302"/>
                   </g>
-                  <path d="%s" fill="none" stroke="#f0b90b" stroke-width="4" stroke-dasharray="10 10" stroke-linecap="round"/>
-                  <path d="%s" fill="none" stroke="#0ecb81" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-                  <circle cx="590" cy="%d" r="7" fill="#f0b90b" stroke="#111827" stroke-width="3"/>
-                  <text x="48" y="326" fill="#111827" font-family="Arial, sans-serif" font-size="18" font-weight="700">%s %s</text>
+                  <g fill="#263241">
+                    <rect x="76" y="284" width="10" height="18" rx="2"/><rect x="112" y="274" width="10" height="28" rx="2"/>
+                    <rect x="148" y="292" width="10" height="10" rx="2"/><rect x="184" y="262" width="10" height="40" rx="2"/>
+                    <rect x="220" y="276" width="10" height="26" rx="2"/><rect x="256" y="250" width="10" height="52" rx="2"/>
+                    <rect x="292" y="270" width="10" height="32" rx="2"/><rect x="328" y="242" width="10" height="60" rx="2"/>
+                    <rect x="364" y="264" width="10" height="38" rx="2"/><rect x="400" y="252" width="10" height="50" rx="2"/>
+                    <rect x="436" y="280" width="10" height="22" rx="2"/><rect x="472" y="258" width="10" height="44" rx="2"/>
+                    <rect x="508" y="268" width="10" height="34" rx="2"/><rect x="544" y="238" width="10" height="64" rx="2"/>
+                  </g>
+                  <path d="%s L590 302 L50 302 Z" fill="url(#area)"/>
+                  <path d="%s" fill="none" stroke="#f0b90b" stroke-width="4" stroke-dasharray="10 10" stroke-linecap="round" opacity="0.9"/>
+                  <path d="%s" fill="none" stroke="#0ecb81" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+                  <path d="%s" fill="none" stroke="#9af4c4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+                  <circle cx="590" cy="%d" r="7" fill="#f0b90b" stroke="#0b0e11" stroke-width="3"/>
+                  <text x="40" y="42" fill="#f5f6f7" font-family="Arial, sans-serif" font-size="16" font-weight="800">%s</text>
+                  <text x="548" y="42" fill="#848e9c" font-family="Arial, sans-serif" font-size="14" font-weight="700">%s</text>
+                  <text x="42" y="324" fill="#848e9c" font-family="Arial, sans-serif" font-size="12" font-weight="700">AI chart image</text>
                 </svg>
-                """.formatted(guide, flow, endY(patternId), escape(stockName), period);
+                """.formatted(flow, guide, flow, flow, endY(patternId), escape(stockName), period);
         return "data:image/svg+xml;base64," + Base64.getEncoder().encodeToString(svg.getBytes(StandardCharsets.UTF_8));
     }
 

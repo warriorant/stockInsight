@@ -247,7 +247,7 @@ function PatternAnalysisCard({ analysis, loading, onRefresh }) {
                     alt={`${displayPeriod(item.period)} AI 분석 차트`}
                   />
                 )}
-                <div>
+                <div className="period-pattern-info">
                   <span>{displayPeriod(item.period)} 차트</span>
                   <strong>{item.patternName}</strong>
                   <em>패턴 {item.patternId}</em>
