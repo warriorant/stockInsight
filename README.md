@@ -125,6 +125,9 @@ KOSPI_RENDER_API_KEY=your_render_api_key
 AI_CHART_IMAGE_URL=https://kospi-data-api.onrender.com/v1/render
 AI_PATTERN_SERVER_PREDICT_URL=https://stock-api-server-r63u.onrender.com/predict/
 AI_PATTERN_SERVER_TIMEOUT_SECONDS=180
+CHART_PATTERN_AI_ON_DEMAND_ENABLED=false
+CHART_PATTERN_DEMO_SEED_ENABLED=true
+CHART_PATTERN_DEMO_SEED_RESET=true
 CANDLE_SYNC_ENABLED=false
 CANDLE_SYNC_CRON=0 30 21 * * MON-FRI
 CANDLE_SYNC_DELAY_MS=500
@@ -169,7 +172,9 @@ VITE_API_BASE_URL=http://localhost:8080/api
 ## Chart Pattern Analysis
 
 The detail page shows an AI chart pattern area instead of a suitability score.
-The current implementation is wired for the real two-step AI flow and does not generate mock pattern results.
+The two-step AI integration code is still present, but the default demo mode does not call AI servers from user requests.
+Instead, the backend seeds about 20 presentation-ready chart-pattern results into PostgreSQL and serves those DB results immediately.
+By default, `CHART_PATTERN_DEMO_SEED_RESET=true` clears old chart-pattern analysis rows on startup so the demo DB contains only the curated seed set.
 
 It provides:
 
@@ -184,15 +189,16 @@ The service intentionally does not provide direct action recommendations. It pre
 Expected production flow:
 
 ```text
-Pre-collection batch -> Toss Open API OAuth token
-Pre-collection batch -> Toss daily candles, with nextBefore pagination
-Pre-collection batch -> stock_candles table
-User request -> Backend reads recent candles from stock_candles first
-Backend -> Render API /v1/render with stored 12 months of candles
-Render API -> 6M/12M chart images
-Backend -> Pattern API /predict/ with chart image
-Pattern API -> pattern/confidence
-Backend -> Frontend
+Startup -> Seed demo chart-pattern results into PostgreSQL
+User request -> Backend reads latest chart_pattern_analysis_runs result
+Cached result exists -> Backend returns stored pattern/confidence/chart image immediately
+Cached result missing -> Backend returns "analysis preparing"
+```
+
+To re-enable the real on-demand AI flow later:
+
+```bash
+CHART_PATTERN_AI_ON_DEMAND_ENABLED=true
 ```
 
 Toss Open API requires the backend server's outbound IPv4 to be registered in Toss WTS. For local testing, register the IPv4 from:
@@ -201,10 +207,9 @@ Toss Open API requires the backend server's outbound IPv4 to be registered in To
 curl -4 https://api.ipify.org
 ```
 
-If enough stored candles are available, chart pattern analysis does not call Toss during the user request.
-If fewer than 100 stored candles are available for the stock, the backend falls back to the existing direct Toss fetch path so local testing still works.
-If the same stock was already analyzed today, the backend returns the stored `chart_pattern_analysis_runs` result first and skips both AI servers.
-Use `refresh=true` only when you intentionally want to rerun the AI flow:
+With `CHART_PATTERN_AI_ON_DEMAND_ENABLED=false`, chart pattern analysis never calls Toss or the AI servers during the user request.
+If the requested stock has no DB result, the frontend shows an analysis-preparing state.
+Use `refresh=true` only after enabling on-demand AI flow:
 
 ```powershell
 Invoke-RestMethod -Uri "http://localhost:8080/api/stocks/005930/chart-pattern-analysis?refresh=true" -Method Post
@@ -248,7 +253,7 @@ If PostgreSQL is not enabled or the table is empty, the service falls back to th
 
 The same DB-first stock list is used for OHLC candle pre-collection.
 Current operation does not run whole-market AI chart analysis in advance.
-Only Toss OHLC candles are collected ahead of time, and AI chart analysis runs when a user requests a stock.
+The presentation mode serves seeded DB analysis rows and shows "analysis preparing" for stocks without stored analysis.
 
 The legacy chart-pattern batch settings remain disabled by default:
 

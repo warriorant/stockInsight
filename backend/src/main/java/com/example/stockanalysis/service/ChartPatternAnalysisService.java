@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -24,16 +25,19 @@ public class ChartPatternAnalysisService {
     private final StockService stockService;
     private final ChartPatternAnalysisClient chartPatternAnalysisClient;
     private final StockPersistencePort stockPersistencePort;
+    private final boolean onDemandEnabled;
     private final Map<String, ChartPatternAnalysisResponse> latestAnalysisBySymbol = new ConcurrentHashMap<>();
 
     public ChartPatternAnalysisService(
             StockService stockService,
             ChartPatternAnalysisClient chartPatternAnalysisClient,
-            StockPersistencePort stockPersistencePort
+            StockPersistencePort stockPersistencePort,
+            @Value("${app.ai.chart-pattern.on-demand-enabled:false}") boolean onDemandEnabled
     ) {
         this.stockService = stockService;
         this.chartPatternAnalysisClient = chartPatternAnalysisClient;
         this.stockPersistencePort = stockPersistencePort;
+        this.onDemandEnabled = onDemandEnabled;
     }
 
     public ChartPatternAnalysisResponse analyze(String symbol) {
@@ -43,6 +47,15 @@ public class ChartPatternAnalysisService {
     public ChartPatternAnalysisResponse analyze(String symbol, boolean refresh) {
         String normalizedSymbol = normalizeSymbol(symbol);
         LocalDate targetDate = LocalDate.now();
+        if (!onDemandEnabled) {
+            java.util.Optional<ChartPatternAnalysisResponse> cached = stockPersistencePort.findLatestChartPatternAnalysis(normalizedSymbol);
+            if (cached.isPresent()) {
+                latestAnalysisBySymbol.put(normalizedSymbol, cached.get());
+                return cached.get();
+            }
+            return preparingResponse(normalizedSymbol);
+        }
+
         if (!refresh) {
             java.util.Optional<ChartPatternAnalysisResponse> cached = stockPersistencePort.findChartPatternAnalysis(normalizedSymbol, targetDate);
             if (cached.isPresent()) {
@@ -114,8 +127,37 @@ public class ChartPatternAnalysisService {
         if (persisted.isPresent()) {
             return persisted.get();
         }
+        if (!onDemandEnabled) {
+            return preparingResponse(normalizedSymbol);
+        }
         ChartPatternAnalysisResponse cachedAnalysis = latestAnalysisBySymbol.get(normalizedSymbol);
         return cachedAnalysis != null ? cachedAnalysis : analyze(normalizedSymbol);
+    }
+
+    private ChartPatternAnalysisResponse preparingResponse(String symbol) {
+        StockResponse stock = stockService.getStock(symbol);
+        return new ChartPatternAnalysisResponse(
+                stock.symbol(),
+                stock.name(),
+                null,
+                "ANALYSIS_NOT_PREPARED",
+                "preparing",
+                "분석 준비 중",
+                "분석 대기",
+                null,
+                "%s의 차트 패턴 분석 결과는 아직 준비되지 않았습니다. 발표 모드에서는 미리 저장된 분석 결과만 표시합니다."
+                        .formatted(stock.name()),
+                "아직 DB에 저장된 차트 패턴 분석 결과가 없습니다.",
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(
+                        "발표용 DB seed 대상 종목인지 확인",
+                        "운영자가 분석 결과를 DB에 적재한 뒤 다시 확인",
+                        "실시간 AI 호출은 현재 발표 안정성을 위해 비활성화"
+                ),
+                "현재 화면은 분석 준비 상태 안내이며, 특정 투자 행동을 지시하지 않습니다."
+        );
     }
 
     private String normalizeSymbol(String symbol) {

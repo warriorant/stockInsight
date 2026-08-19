@@ -25,6 +25,8 @@ public interface StockPersistencePort {
 
     void saveChartPatternAnalysis(ChartPatternAnalysisResponse response);
 
+    void deleteAllChartPatternAnalyses();
+
     Optional<ChartPatternAnalysisResponse> findChartPatternAnalysis(String symbol, LocalDate targetDate);
 
     Optional<ChartPatternAnalysisResponse> findLatestChartPatternAnalysis(String symbol);

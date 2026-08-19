@@ -107,6 +107,23 @@ function patternVisual(patternName) {
 }
 
 function PatternPreview({ analysis }) {
+  if (analysis.analysisMode === 'preparing') {
+    return (
+      <section className="pattern-visual-panel preparing-chart-panel" aria-label="차트 패턴 분석 준비 중">
+        <div className="pattern-visual-copy">
+          <span>DB 분석 대기</span>
+          <strong>분석 준비 중</strong>
+          <p>이 종목은 아직 발표용 분석 DB에 저장된 차트 패턴 결과가 없습니다.</p>
+        </div>
+        <div className="preparing-chart-message">
+          <Brain size={34} aria-hidden="true" />
+          <strong>사전 분석 결과가 준비되면 이 영역에 차트 이미지와 패턴 분류가 표시됩니다.</strong>
+          <p>현재 발표 모드에서는 안정적인 시연을 위해 DB에 저장된 분석 결과만 보여줍니다.</p>
+        </div>
+      </section>
+    );
+  }
+
   const actualImage = analysis.periodAnalyses
     ?.filter((item) => item.chartImageDataUrl)
     .sort((left, right) => {
@@ -189,6 +206,7 @@ function PatternAnalysisCard({ analysis, loading, onRefresh }) {
   if (!analysis) {
     return <div className="empty-panel">차트 패턴 분석 결과가 없습니다.</div>;
   }
+  const isPreparing = analysis.analysisMode === 'preparing';
 
   return (
     <article className="analysis-card pattern-card">
@@ -201,10 +219,12 @@ function PatternAnalysisCard({ analysis, loading, onRefresh }) {
           <h2>{analysis.patternName}</h2>
           <p>{analysis.patternCategory}</p>
         </div>
-        <div className="pattern-confidence">
-          <span>패턴 인식 신뢰도</span>
-          <strong>{formatConfidence(analysis.confidence)}</strong>
-        </div>
+        {!isPreparing && (
+          <div className="pattern-confidence">
+            <span>패턴 인식 신뢰도</span>
+            <strong>{formatConfidence(analysis.confidence)}</strong>
+          </div>
+        )}
       </div>
 
       <p className="analysis-summary">{analysis.summary}</p>
@@ -274,6 +294,7 @@ function PatternAnalysisCard({ analysis, loading, onRefresh }) {
         </section>
       </div>
 
+      {!isPreparing && (
       <section className="pattern-backtest">
         <div className="pattern-section-title">
           <BarChart3 size={18} aria-hidden="true" />
@@ -298,7 +319,9 @@ function PatternAnalysisCard({ analysis, loading, onRefresh }) {
           ))}
         </div>
       </section>
+      )}
 
+      {!isPreparing && (
       <section className="similar-patterns">
         <div className="pattern-section-title">
           <BarChart3 size={18} aria-hidden="true" />
@@ -329,10 +352,11 @@ function PatternAnalysisCard({ analysis, loading, onRefresh }) {
           ))}
         </div>
       </section>
+      )}
 
-      <button type="button" className="primary-button" onClick={onRefresh} disabled={loading}>
+      <button type="button" className="primary-button" onClick={onRefresh} disabled={loading || isPreparing}>
         <RefreshCw size={18} aria-hidden="true" />
-        {loading ? '분석 중' : '패턴 다시 분석'}
+        {isPreparing ? '분석 준비 중' : loading ? '분석 중' : '패턴 다시 분석'}
       </button>
     </article>
   );

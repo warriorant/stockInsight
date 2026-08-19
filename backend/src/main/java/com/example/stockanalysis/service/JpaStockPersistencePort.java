@@ -168,6 +168,12 @@ public class JpaStockPersistencePort implements StockPersistencePort {
     }
 
     @Override
+    @Transactional
+    public void deleteAllChartPatternAnalyses() {
+        chartPatternAnalysisRunRepository.deleteAll();
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Optional<ChartPatternAnalysisResponse> findChartPatternAnalysis(String symbol, LocalDate targetDate) {
         return chartPatternAnalysisRunRepository.findFirstBySymbolAndTargetDateOrderByCreatedAtDesc(symbol, targetDate)

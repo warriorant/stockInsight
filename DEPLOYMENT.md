@@ -8,20 +8,15 @@
 
 ```text
 1. Backend loads KOSPI stock master data.
-2. Operator or scheduler collects Toss OHLC candles for KOSPI stocks.
-3. Backend stores OHLC rows in PostgreSQL stock_candles.
-4. User opens a stock detail page and requests chart-pattern analysis.
-5. Backend checks today's cached analysis result first.
-6. If no cached result exists, backend reads OHLC from PostgreSQL.
-7. Backend sends the same candle JSON as before to AI server 1.
-8. AI server 1 returns chart images.
-9. Backend sends those images to AI server 2.
-10. AI server 2 returns pattern/confidence.
-11. Backend stores and returns the final enriched result, including generated chart images.
+2. Backend seeds about 20 presentation-ready chart-pattern analysis rows into PostgreSQL.
+3. User opens a stock detail page and requests chart-pattern analysis.
+4. Backend reads the latest stored analysis result from PostgreSQL.
+5. If a DB result exists, backend returns pattern/confidence/reference stats/chart images immediately.
+6. If no DB result exists, backend returns an "analysis preparing" response.
 ```
 
-AI server 1 and AI server 2 do not need API contract changes for this backend update.
-Only the OHLC source changed from "Toss during user request" to "PostgreSQL first".
+AI server 1 and AI server 2 integration code remains in the backend, but the final presentation mode keeps on-demand AI calls disabled.
+The AI servers can be re-enabled later by changing environment variables.
 
 ## Repository Layout
 
@@ -66,6 +61,9 @@ KOSPI_RENDER_API_KEY=YOUR_RENDER_API_KEY
 
 AI_PATTERN_SERVER_PREDICT_URL=https://stock-api-server-r63u.onrender.com/predict/
 AI_PATTERN_SERVER_TIMEOUT_SECONDS=180
+CHART_PATTERN_AI_ON_DEMAND_ENABLED=false
+CHART_PATTERN_DEMO_SEED_ENABLED=true
+CHART_PATTERN_DEMO_SEED_RESET=true
 
 FMP_API_KEY=
 FRED_API_KEY=
@@ -90,7 +88,10 @@ Important:
 - `SPRING_PROFILES_ACTIVE=postgres` is required for PostgreSQL persistence.
 - `CORS_ALLOWED_ORIGINS` must be the frontend deployment URL.
 - `VITE_API_BASE_URL` must be set when building the frontend.
-- Register the backend server's outbound public IPv4 in Toss WTS before collecting candles.
+- `CHART_PATTERN_AI_ON_DEMAND_ENABLED=false` prevents user requests from calling AI server 1/2.
+- `CHART_PATTERN_DEMO_SEED_ENABLED=true` inserts presentation-ready demo analysis rows on startup.
+- `CHART_PATTERN_DEMO_SEED_RESET=true` clears old chart-pattern analysis rows before inserting the curated 20-row demo set.
+- Register the backend server's outbound public IPv4 in Toss WTS only if collecting real candles.
 - Keep `CHART_PATTERN_BATCH_ENABLED=false`; current operation does not run whole-market AI analysis.
 
 ## Backend Deployment
@@ -154,9 +155,12 @@ Important tables:
 - `chart_pattern_analysis_runs`: cached/enriched chart-pattern analysis results
 - `chart_pattern_period_results`: 6M/12M classification details and generated chart image data URLs
 
+With the default demo seed settings, these chart-pattern analysis tables are reset on backend startup and refilled with the curated presentation data.
+
 ## OHLC Pre-Collection
 
-Run this before the demo or after market data needs refreshing.
+This is optional in the final presentation mode because user analysis reads seeded DB results.
+Run it only when testing the real Toss OHLC path.
 
 Small test:
 
@@ -194,9 +198,9 @@ Invoke-RestMethod -Uri "https://BACKEND_DOMAIN/api/stocks/005930/chart-pattern-a
 
 Behavior:
 
-- If today's analysis for the symbol already exists, backend returns DB cache immediately.
-- If not cached, backend reads OHLC from `stock_candles` and calls AI server 1 and AI server 2.
-- If fewer than 100 stored candles are available, backend falls back to direct Toss fetch for local/dev convenience.
+- If an analysis result for the symbol exists, backend returns the latest DB row immediately.
+- If no stored result exists and `CHART_PATTERN_AI_ON_DEMAND_ENABLED=false`, backend returns "analysis preparing".
+- If `CHART_PATTERN_AI_ON_DEMAND_ENABLED=true`, backend can still use the preserved real AI server 1/2 flow.
 
 Force rerun:
 
@@ -204,24 +208,23 @@ Force rerun:
 Invoke-RestMethod -Uri "https://BACKEND_DOMAIN/api/stocks/005930/chart-pattern-analysis?refresh=true" -Method Post
 ```
 
-Use `refresh=true` only for debugging because it calls AI servers again.
+With `CHART_PATTERN_AI_ON_DEMAND_ENABLED=false`, `refresh=true` still returns DB/preparing results and does not call AI servers.
+Use `refresh=true` for real AI reruns only after enabling `CHART_PATTERN_AI_ON_DEMAND_ENABLED=true`.
 
 ## Recommended Demo Checklist
 
 1. Start PostgreSQL.
 2. Start backend with `SPRING_PROFILES_ACTIVE=postgres`.
 3. Confirm backend health by opening `/api/stocks`.
-4. Run candle pre-collection with `limit=5`.
-5. Confirm `GET /api/admin/candles/kospi` shows `failureCount=0`.
-6. Run one stock analysis with `refresh=true`.
-7. Run the same stock analysis again without `refresh=true`.
-8. Confirm the second request is much faster because DB cache is used.
-9. If small test is stable, run full KOSPI candle collection.
+4. Confirm startup logs show demo chart pattern seed insertion or "already exists".
+5. Open a seeded stock such as Samsung Electronics (`005930`) and confirm analysis appears immediately.
+6. Open a non-seeded stock and confirm the frontend shows "분석 준비 중".
+7. Keep `CHART_PATTERN_BATCH_ENABLED=false` and `CHART_PATTERN_AI_ON_DEMAND_ENABLED=false` for presentation stability.
 
 ## Known Notes
 
 - AI pattern quality is controlled by AI server 2. Backend only maps `pattern` and `confidence` to labels and reference stats.
-- Many real KOSPI charts currently return `패턴19 / Other(노이즈)`.
+- The final presentation path uses seeded DB results, not live AI server responses.
 - Generated chart images are stored in `chart_pattern_period_results` as data URLs so cached results can show the exact image used for classification.
-- Old cached analysis rows created before image storage may not show images. Run analysis with `refresh=true` once to create a new image-backed cache row.
-- Current operation does not pre-run AI analysis for all KOSPI stocks. Only OHLC is collected in advance.
+- Old cached analysis rows created before image storage may not show images. The demo seed creates image-backed rows.
+- Current operation does not pre-run AI analysis for all KOSPI stocks.

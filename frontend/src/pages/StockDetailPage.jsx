@@ -31,6 +31,7 @@ function StockDetailPage() {
   const isPositive = useMemo(() => Number(stock?.changeRate ?? 0) >= 0, [stock]);
   const hasPrice = stock?.currentPrice !== null && stock?.currentPrice !== undefined && Number(stock.currentPrice) > 0;
   const hasChangeRate = stock?.changeRate !== null && stock?.changeRate !== undefined;
+  const patternPreparing = patternAnalysis?.analysisMode === 'preparing';
 
   useEffect(() => {
     const loadStaticData = async () => {
@@ -168,9 +169,14 @@ function StockDetailPage() {
             <span className="eyebrow">차트 패턴</span>
             <h2>AI 패턴 분석과 과거 통계</h2>
           </div>
-          <button type="button" className="ghost-button" onClick={refreshPatternAnalysis} disabled={patternLoading}>
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={refreshPatternAnalysis}
+            disabled={patternLoading || patternPreparing}
+          >
             <RefreshCw size={18} aria-hidden="true" />
-            갱신
+            {patternPreparing ? '준비 중' : '갱신'}
           </button>
         </div>
         <PatternAnalysisCard

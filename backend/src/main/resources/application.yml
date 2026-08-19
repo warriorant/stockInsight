@@ -22,6 +22,9 @@ app:
       mock-enabled: ${AI_CHART_IMAGE_MOCK_ENABLED:false}
     chart-pattern:
       mock-enabled: ${AI_CHART_PATTERN_MOCK_ENABLED:false}
+      on-demand-enabled: ${CHART_PATTERN_AI_ON_DEMAND_ENABLED:false}
+      demo-seed-enabled: ${CHART_PATTERN_DEMO_SEED_ENABLED:true}
+      demo-seed-reset: ${CHART_PATTERN_DEMO_SEED_RESET:true}
     pattern-server:
       predict-url: ${AI_PATTERN_SERVER_PREDICT_URL:https://stock-api-server-r63u.onrender.com/predict/}
       timeout-seconds: ${AI_PATTERN_SERVER_TIMEOUT_SECONDS:180}

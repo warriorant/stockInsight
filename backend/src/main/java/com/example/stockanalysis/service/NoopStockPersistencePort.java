@@ -49,6 +49,10 @@ public class NoopStockPersistencePort implements StockPersistencePort {
     }
 
     @Override
+    public void deleteAllChartPatternAnalyses() {
+    }
+
+    @Override
     public Optional<ChartPatternAnalysisResponse> findChartPatternAnalysis(String symbol, LocalDate targetDate) {
         return Optional.empty();
     }
