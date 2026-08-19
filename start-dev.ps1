@@ -69,6 +69,9 @@ if ($usePostgres) {
     Write-Host "Backend database: local in-memory mode"
 }
 Write-Host "Frontend URL: http://127.0.0.1:$FrontendPort"
+if ($usePostgres) {
+    Write-Host "Chart pattern mode: demo DB seed, AI on-demand disabled by default"
+}
 Write-Host "Close each terminal, or press Ctrl+C inside it, to stop servers."
 
 Start-Process -FilePath $powershell -ArgumentList $backendArgs -WorkingDirectory $repoRoot
